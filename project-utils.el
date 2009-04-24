@@ -27,10 +27,11 @@
 					     buffer-file-name
 					   (file-name-directory buffer-file-name)))))
 	 (this-project-dir (if (and
-				(fboundp get-top-dir)
 				(not (null buffer-dir))
 				(null arg))
-			       (file-name-as-directory (funcall get-top-dir buffer-dir))
+			       (let ((project-dir-temp (funcall get-top-dir buffer-dir)))
+				 (when (not (null project-dir-temp))
+				   (file-name-as-directory project-dir-temp)))
 			     nil)))
     (funcall action-function (ido-completing-read prompt project-dirs nil nil this-project-dir))))
 
