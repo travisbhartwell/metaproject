@@ -14,6 +14,7 @@ Notes and plans:
     - dired at top level dir
     - supporting org-mode file, if defined
     - open shell buffer (ansi-term or eshell) at top-level dir
+    - websites to open via browse-url
   - run any project initialization commands, i.e.:
     - open rope project at appropriate dir (top-level?)
     - start SLIME
@@ -47,3 +48,17 @@ Notes and plans:
   - close project
   - jump to or open project buffer
   - switch to open project buffer
+
+- Refresh project
+  - if new files are added to project
+
+- Add file to project
+  - current buffer's file
+  - prompt for file
+  - currently marked file(s) in dired
+
+- Remove file from project
+  - current file
+  - prompt for file (ido)
+
+- Create empty project
