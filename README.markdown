@@ -6,6 +6,7 @@ closing, and finding related files together and having common buffers
 for a project -- like a magit status buffer, and eshell buffer, etc.
 
 Notes and plans:
+
 - Open project
   - open all files in a project, including project supporting buffers
   - open just project supporting buffers, including:
