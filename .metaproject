@@ -1,0 +1,3 @@
+; -*- mode: emacs-lisp -*-
+
+(files ("metaproject.el" "README.markdown") magit-status t)
