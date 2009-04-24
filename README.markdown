@@ -62,3 +62,10 @@ Notes and plans:
   - prompt for file (ido)
 
 - Create empty project
+
+- Grep through files of the project
+
+- Etags
+
+- ibuffer limited to just project files
+
