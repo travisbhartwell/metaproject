@@ -32,7 +32,7 @@
 				(null arg))
 			       (file-name-as-directory (funcall get-top-dir buffer-dir))
 			     nil)))
-    (funcall action-function (ido-completing-read prompt project-dirs nil nil nil))))
+    (funcall action-function (ido-completing-read prompt project-dirs nil nil this-project-dir))))
 
 (provide 'project-utils)
 
