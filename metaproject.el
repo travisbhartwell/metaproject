@@ -35,13 +35,21 @@ files for each project")
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
 (defun metaproject-get-top-dir (dir)
-  (locate-dominating-file dir metaproject-config-file-name))
+  (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
+       (when (not (null top-dir))
+	      (expand-file-name top-dir))))
 
 (defun metaproject-find-metaprojects (dir)
   (project-util-find #'metaproject-is-metaproject dir))
 
 (defun metaproject-open-ido (arg)
   (interactive "P")
-  (project-util-action-ido #'metaproject-find-metaprojects metaproject-project-dirs #'metaproject-get-top-dir #'metaproject-open-project "Metaproject Project to open? " arg))
+  (project-util-action-ido
+   #'metaproject-find-metaprojects
+   metaproject-project-dirs
+   #'metaproject-get-top-dir
+   #'metaproject-open-project
+   "Metaproject Project to open? "
+   arg))
 
 (provide 'metaproject)
