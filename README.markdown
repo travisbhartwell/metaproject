@@ -69,3 +69,62 @@ Notes and plans:
 
 - ibuffer limited to just project files
 
+
+NOTES / QUESTIONS:
+-----------------
+
+- I seem to be limiting the idea of a project of those files under a
+  common sub-directory.  This might be fine for now, but that doesn't
+  seem to be a reasonable limitation.  I should examine where this
+  assumption is made and see how to remove it.  i.e.,
+  metaproject-get-top-dir
+
+- It is probably a reasonable assumption that a given file can only
+  belong to one open project at a time.  If I want to allow for this,
+  how to work around it?
+  
+TODO LIST:
+----------
+
+- action registry
+  - each key in the .metaproject plist is associated with a given
+    action
+  - these actions are provided by calling a registry function, often
+    within an individual emacs module.  this allows for optional
+    functionality to be provided and have a minimal stable core
+  - at open time, the action registry is looped through, in order
+    (should order matter?), and a check is made to see if a
+    corresponding value is found in the plist.  if so, the registered
+    action function is called with the value in the plist as its
+    argument.
+  - do I need registration for other events?  probably at least open
+    and close.
+  - only the basic ones that include default features from emacs
+    proper will be included in the core metaproject module.  right
+    now, this is simple file opening and closing and perhaps dired.
+  - others include: magit, rope, slime, org-mode, shell buffer, etags
+
+- runtime project configuration data
+  - need to do more than just be read at open time
+  - open into its own buffer instead of a temp-buffer
+  - set a buffer-local variable that is the plist resulting from
+  - read-ing the buffer
+  
+  - after opening each file, set a buffer local variable that is
+    reference to the buffer of the .metaproject
+  - the project should contain a list of references to the open
+    buffers of the project memebers
+    - there probably should be a hook or advice set for these buffers
+      to remove their reference from the open buffer list when they
+      are closed.
+    
+- licensing
+  - GPL, add headers and copyrights to files
+
+- code clean-up
+  - convert the var to a defcustom
+  - add docstrings to all "top-level" functions, at minimum
+  - abstract out getting data from the config to functions so as to
+    hide the use plists or where the plist lives
+
+  
