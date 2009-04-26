@@ -118,9 +118,6 @@ TODO LIST:
       to remove their reference from the open buffer list when they
       are closed.
     
-- licensing
-  - GPL, add headers and copyrights to files
-
 - code clean-up
   - convert the var to a defcustom
   - add docstrings to all "top-level" functions, at minimum
