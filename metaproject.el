@@ -37,6 +37,7 @@ files for each project")
 (defun metaproject-read-from-file (file)
   (save-excursion
     (find-file file)
+    (add-hook 'kill-buffer-query-functions 'metaproject-close-project t t)
     (beginning-of-buffer)
     (make-variable-buffer-local 'project-config)    
     (setq project-config (read (current-buffer)))
@@ -44,6 +45,8 @@ files for each project")
     (plist-put project-config 'project-config-buffer (current-buffer))
     (plist-put project-config 'project-buffers nil)))
 
+;;; Currently not comfortable with this because it relies on dynamic variables
+;;; I know that is a built-in-functionality, but I wonder if this could be written cleaner
 (defun metaproject-open-project-files (project-config)
   (let ((files (plist-get project-config 'files))
         (project-base-dir (plist-get project-config 'project-base-dir))
@@ -57,6 +60,30 @@ files for each project")
   (setq project-config-buffer (plist-get project-config 'project-config-buffer))
   (add-to-list 'project-buffers (current-buffer))
   (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))
+
+(defun metaproject-teardown-buffer (buffer)
+  (set-buffer buffer)
+  (makunbound 'project-config-buffer)
+  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
+
+(defun metaproject-close-project (&optional config-buffer)
+  (let ((config-buffer (when (and (null config-buffer)
+				  (boundp 'project-config))
+			   (current-buffer))))
+    (if (not (null config-buffer))
+	(progn
+	  (set-buffer config-buffer)
+	  (let* ((project-base-dir (plist-get project-config 'project-base-dir))
+		 (project-buffers (plist-get project-config 'project-buffers))
+		 (close-project-p (y-or-n-p (format "Closing this file will close the project. Close project %s? " project-base-dir))))
+	    (if close-project-p
+		(progn
+		  (if (y-or-n-p "Close all project files and buffers? ")
+		      (mapc 'kill-buffer project-buffers)
+		    (mapc 'metaproject-teardown-buffer project-buffers))
+		  t)
+	      nil)))
+      t)))
 
 (defun metaproject-get-project-config-from-buffer (buffer)
   (save-excursion
