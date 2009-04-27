@@ -131,7 +131,4 @@ files for each project")
    arg))
 
 (provide 'metaproject)
-
-(provide 'metaproject)
-
 ;;; metaproject.el ends here
