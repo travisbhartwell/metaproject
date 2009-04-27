@@ -107,5 +107,8 @@ TODO LIST:
 - code clean-up
   - convert the var to a defcustom
   - add docstrings to all "top-level" functions, at minimum
-
+  - convert TODOs and the like from README.markdown to an org-mode
+    file
+  - Add descriptions to the top of the .el files
+  - Add usage instructions
   
