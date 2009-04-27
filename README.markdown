@@ -69,6 +69,9 @@ Notes and plans:
 
 - ibuffer limited to just project files
 
+- compile project
+
+- agenda just for project files
 
 NOTES / QUESTIONS:
 -----------------

@@ -23,23 +23,28 @@
 
 ;;; TODO: Summary goes here
 
+
+;;; History:
+;; 
+
 (require 'cl)
 (require 'project-utils)
 
+;;; Code:
 (defconst metaproject-config-file-name ".metaproject"
   "This is the default filename used for the metaproject configuration
 files for each project")
 
 ; Probably should be a customization
 (defvar metaproject-project-dirs nil
-  "This is a list of the directories that contain project directories")
+  "This is a list of the directories that contain project directories.")
 
 (defun metaproject-read-from-file (file)
   (save-excursion
     (find-file file)
     (add-hook 'kill-buffer-query-functions 'metaproject-close-project t t)
     (beginning-of-buffer)
-    (make-variable-buffer-local 'project-config)    
+    (make-variable-buffer-local 'project-config)
     (setq project-config (read (current-buffer)))
     (plist-put project-config 'project-base-dir (file-name-directory file))
     (plist-put project-config 'project-config-buffer (current-buffer))
@@ -75,7 +80,7 @@ files for each project")
 	  (set-buffer config-buffer)
 	  (let* ((project-base-dir (plist-get project-config 'project-base-dir))
 		 (project-buffers (plist-get project-config 'project-buffers))
-		 (close-project-p (y-or-n-p (format "Closing this file will close the project. Close project %s? " project-base-dir))))
+		 (close-project-p (y-or-n-p (format "Closing this file will close the project.  Close project %s? " project-base-dir))))
 	    (if close-project-p
 		(progn
 		  (if (y-or-n-p "Close all project files and buffers? ")
@@ -126,3 +131,7 @@ files for each project")
    arg))
 
 (provide 'metaproject)
+
+(provide 'metaproject)
+
+;;; metaproject.el ends here
