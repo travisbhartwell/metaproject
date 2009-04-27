@@ -104,24 +104,8 @@ TODO LIST:
     now, this is simple file opening and closing and perhaps dired.
   - others include: magit, rope, slime, org-mode, shell buffer, etags
 
-- runtime project configuration data
-  - need to do more than just be read at open time
-  - open into its own buffer instead of a temp-buffer
-  - set a buffer-local variable that is the plist resulting from
-  - read-ing the buffer
-  
-  - after opening each file, set a buffer local variable that is
-    reference to the buffer of the .metaproject
-  - the project should contain a list of references to the open
-    buffers of the project memebers
-    - there probably should be a hook or advice set for these buffers
-      to remove their reference from the open buffer list when they
-      are closed.
-    
 - code clean-up
   - convert the var to a defcustom
   - add docstrings to all "top-level" functions, at minimum
-  - abstract out getting data from the config to functions so as to
-    hide the use plists or where the plist lives
 
   

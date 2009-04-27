@@ -23,6 +23,7 @@
 
 ;;; TODO: Summary goes here
 
+(require 'cl)
 (require 'project-utils)
 
 (defconst metaproject-config-file-name ".metaproject"
@@ -34,19 +35,40 @@ files for each project")
   "This is a list of the directories that contain project directories")
 
 (defun metaproject-read-from-file (file)
-  (with-temp-buffer
-    (insert-file-contents file)
-    (let ((project-config (read (current-buffer))))
-      (plist-put project-config 'project-base-dir (file-name-directory file)))))
+  (save-excursion
+    (find-file file)
+    (beginning-of-buffer)
+    (make-variable-buffer-local 'project-config)    
+    (setq project-config (read (current-buffer)))
+    (plist-put project-config 'project-base-dir (file-name-directory file))
+    (plist-put project-config 'project-config-buffer (current-buffer))
+    (plist-put project-config 'project-buffers nil)))
 
 (defun metaproject-open-project-files (project-config)
   (let ((files (plist-get project-config 'files))
-        (project-base-dir (plist-get project-config 'project-base-dir)))
-    (mapc
-     (lambda (f)
-       (find-file (expand-file-name f project-base-dir)))
-     files)))
+        (project-base-dir (plist-get project-config 'project-base-dir))
+        (project-buffers (plist-get project-config 'project-buffers)))
+    (mapc 'metaproject-open-and-setup-file files)
+    (setq project-config (plist-put project-config 'project-buffers project-buffers))))
 
+(defun metaproject-open-and-setup-file (file)
+  (find-file (expand-file-name file project-base-dir))
+  (make-variable-buffer-local 'project-config-buffer)
+  (setq project-config-buffer (plist-get project-config 'project-config-buffer))
+  (add-to-list 'project-buffers (current-buffer))
+  (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))
+
+(defun metaproject-get-project-config-from-buffer (buffer)
+  (save-excursion
+    (set-buffer buffer)
+    (set-buffer project-config-buffer)
+    project-config))
+
+(defun metaproject-remove-buffer-from-open-buffers ()
+  (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
+	(project-buffers (plist-get project-config 'project-buffers)))
+      (setq project-config (plist-put project-config 'project-buffers (delq (current-buffer) project-buffers)))))
+      	 
 (defun metaproject-open-project (project-dir)
   (let ((project-file-name
          (expand-file-name metaproject-config-file-name project-dir)))
@@ -54,7 +76,6 @@ files for each project")
         (let ((project-config (metaproject-read-from-file project-file-name)))
 	  (metaproject-open-project-files project-config))
       (message "No project found in directory %s" project-dir))))
-
 
 (defun metaproject-is-metaproject (dir)
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
