@@ -24,8 +24,8 @@
 ;;; TODO: Summary goes here
 
 ;;; History:
-
 (require 'cl)
+(require 'ido)
 (require 'project-utils)
 
 ;;; Code:
@@ -81,7 +81,10 @@
 	  (set-buffer config-buffer)
 	  (let* ((project-base-dir (plist-get project-config 'project-base-dir))
 		 (project-buffers (plist-get project-config 'project-buffers))
-		 (close-project-p (y-or-n-p (format "Closing this file will close the project.  Close project %s? " project-base-dir))))
+		 (close-project-p (y-or-n-p
+				   (format
+				    "Closing this file will close the project.  Close project %s? "
+				    project-base-dir))))
 	    (if close-project-p
 		(progn
 		  (if (y-or-n-p "Close all project files and buffers? ")
@@ -101,7 +104,7 @@
   (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
 	(project-buffers (plist-get project-config 'project-buffers)))
       (setq project-config (plist-put project-config 'project-buffers (delq (current-buffer) project-buffers)))))
-      	 
+
 (defun metaproject-open-project (project-dir)
   (let ((project-file-name
          (expand-file-name metaproject-config-file-name project-dir)))
