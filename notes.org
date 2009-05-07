@@ -69,6 +69,8 @@
 
 ** agenda just for project files
 
+** project-specific bookmarks 
+
 ** questions:
 *** I seem to be limiting the idea of a project of those files under a common sub-directory.  
     This might be fine for now, but that doesn't seem to be a reasonable
@@ -99,7 +101,8 @@
 ***  others include: magit, rope, slime, org-mode, shell buffer, etags
 
 ** code clean-up
-*** TODO convert the var to a defcustom
+*** DONE convert the var to a defcustom
+    CLOSED: [2009-05-01 Fri 16:33]
 *** TODO add docstrings to all "top-level" functions, at minimum
 *** DONE convert TODOs and the like from README.markdown to an org-mode file
     CLOSED: [2009-04-29 Wed 16:48]

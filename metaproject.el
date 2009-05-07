@@ -23,21 +23,22 @@
 
 ;;; TODO: Summary goes here
 
-
 ;;; History:
-;; 
 
 (require 'cl)
 (require 'project-utils)
 
 ;;; Code:
 (defconst metaproject-config-file-name ".metaproject"
-  "This is the default filename used for the metaproject configuration
-files for each project")
+  "This is the default filename used for the metaproject configuration files for each project.")
 
-; Probably should be a customization
-(defvar metaproject-project-dirs nil
-  "This is a list of the directories that contain project directories.")
+(defgroup metaproject nil
+  "Project support and utilities.")
+
+(defcustom metaproject-project-dirs nil
+  "This is a list of the directories that contain project directories."
+  :type '(repeat directory)
+  :group 'metaproject)
 
 (defun metaproject-read-from-file (file)
   (save-excursion
