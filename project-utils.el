@@ -2,6 +2,9 @@
 
 ;; Copyright (C) 2009 Travis B. Hartwell (nafai AT travishartwell DOT net)
 
+;; Version: 0.01
+;; Date: May 7, 2009
+
 ;; This file is not part of GNU Emacs.
 
 ;; This is free software; you can redistribute it and/or modify it under
