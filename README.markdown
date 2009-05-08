@@ -11,6 +11,7 @@ in the project so I could quickly navigate between them.  It got old
 to reopen a few dozen files in a few directories manually.
 
 NOTE:
+
 This is very limited in functionality right now, I'm just getting it
 out so people can try it out and give feedback.  I have some plans
 (see notes.org) for the future that essentially require a re-write of
@@ -21,44 +22,45 @@ I assume you have a basic understanding of Emacs and configuring it; I
 hope to be more newbie friendly in a later version.
 
 To use:
-- Add the directory where you put these files to the emacs load path.
 
-- (require 'metaproject)
+ - Add the directory where you put these files to the emacs load path.
 
-- For what will be optional functionality in the future (as it
-  requires ido), but required to open projects now, you need to
-  customize or set the metaproject-project-dirs variable.
+ - (require 'metaproject)
 
-  M-x customize-variable metaproject-project-dirs
+ - For what will be optional functionality in the future (as it
+   requires ido), but required to open projects now, you need to
+   customize or set the metaproject-project-dirs variable.
 
-- Create a .metaproject file for your project.  It is an emacs lisp
-  file containing a plist, with only property supported right now --
-  the files property.  Its value is a list of relative pathnames for
-  the files that belong to the project.  The pathnames are relative to
-  the top-level directory, the directory in which the .metaproject
-  file is in.
+   M-x customize-variable metaproject-project-dirs
 
-  See the .metaproject file included with the source for an example.
-  I hand created it by doing a find command, piping it to a file, and
-  then using some keyboard macros to translate it into what I wanted.
+ - Create a .metaproject file for your project.  It is an emacs lisp
+   file containing a plist, with only property supported right now --
+   the files property.  Its value is a list of relative pathnames for
+   the files that belong to the project.  The pathnames are relative to
+   the top-level directory, the directory in which the .metaproject
+   file is in.
 
-- To open a project, run:
+   See the .metaproject file included with the source for an example.
+   I hand created it by doing a find command, piping it to a file, and
+   then using some keyboard macros to translate it into what I wanted.
 
-  M-x metaproject-open-ido
+ - To open a project, run:
 
-  select the directory that is the project that you wish to open.
-  This works like any ido prompt for those familiar with it.  I'll
-  provide an interactive means of opening up projects without ido in
-  the next version.
+   M-x metaproject-open-ido
 
-  This opens up all of the files associated with the project, or
-  associates them with the project if they are already open in a
-  buffer.
+   select the directory that is the project that you wish to open.
+   This works like any ido prompt for those familiar with it.  I'll
+   provide an interactive means of opening up projects without ido in
+   the next version.
 
-- To close a project, switch to the corresponding .metaproject buffer
-  and kill it.  It will prompt you if you wish to close the project
-  and then if you wish to close all of the associated files.  In the
-  next version there will be other means to close a project.
+   This opens up all of the files associated with the project, or
+   associates them with the project if they are already open in a
+   buffer.
+
+ - To close a project, switch to the corresponding .metaproject buffer
+   and kill it.  It will prompt you if you wish to close the project
+   and then if you wish to close all of the associated files.  In the
+   next version there will be other means to close a project.
 
 
 That's it for now.  I'm open to comments on the code, as this is my
