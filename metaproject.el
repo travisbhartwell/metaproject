@@ -2,8 +2,7 @@
 
 ;; Copyright (C) 2009 Travis B. Hartwell (nafai AT travishartwell DOT net)
 
-;; Version: 0.01
-;; Date: May 7, 2009
+;; Version: 0.02-SNAPSHOT
 
 ;; This file is not part of GNU Emacs.
 
@@ -27,6 +26,9 @@
 ;;; TODO: Summary goes here
 
 ;;; History:
+;; Version: 0.01
+;; Date: May 7, 2009
+
 (require 'cl)
 (require 'ido)
 (require 'project-utils)
