@@ -29,6 +29,7 @@
 ;; Date: May 7, 2009
 
 (require 'esh-util)
+(require 'ido)
 
 (defun project-util-find (desired-dir-p dir)
   (when (file-directory-p dir)

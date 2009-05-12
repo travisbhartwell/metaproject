@@ -28,15 +28,13 @@
 ;;; History:
 ;; Version: 0.01
 ;; Date: May 7, 2009
-
 (require 'cl)
-(require 'ido)
-(require 'project-utils)
 
-;;; Code:
+;; Metaproject Constants
 (defconst metaproject-config-file-name ".metaproject"
   "This is the default filename used for the metaproject configuration files for each project.")
 
+;; Metaproject Customization items
 (defgroup metaproject nil
   "Project support and utilities.")
 
@@ -45,6 +43,34 @@
   :type '(repeat directory)
   :group 'metaproject)
 
+;; General utilities
+(defun metaproject-is-metaproject (dir)
+  (file-exists-p (expand-file-name metaproject-config-file-name dir)))
+
+(defun metaproject-get-top-dir (dir)
+  (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
+       (when (not (null top-dir))
+	      (expand-file-name top-dir))))
+
+(defun metaproject-find-metaprojects (dir)
+  (project-util-find #'metaproject-is-metaproject dir))
+
+;; Action registry
+(defvar metaproject-action-registry '()
+  "This is an alist that maps from config action names to functions that process their configuration.")
+
+(defun metaproject-register-action (action action-function)
+  (let ((action-sym (if (not (symbolp action)) (make-symbol action) action)))
+    (setq metaproject-action-registry
+	  (acons action-sym action-function metaproject-action-registry))))
+
+(defun metaproject-call-action (project-config action)
+  (let ((args (plist-get project-config action))
+	(action-function (cdr (assoc-string action metaproject-action-registry))))
+      (when (fboundp action-function)
+	(funcall action-function project-config args))))
+
+;; Project config handling
 (defun metaproject-read-from-file (file)
   (save-excursion
     (find-file file)
@@ -56,26 +82,22 @@
     (plist-put project-config 'project-config-buffer (current-buffer))
     (plist-put project-config 'project-buffers nil)))
 
-;;; Currently not comfortable with this because it relies on dynamic variables
-;;; I know that is a built-in-functionality, but I wonder if this could be written cleaner
-(defun metaproject-open-project-files (project-config)
-  (let ((files (plist-get project-config 'files))
-        (project-base-dir (plist-get project-config 'project-base-dir))
-        (project-buffers (plist-get project-config 'project-buffers)))
-    (mapc 'metaproject-open-and-setup-file files)
-    (setq project-config (plist-put project-config 'project-buffers project-buffers))))
+(defun metaproject-get-project-config-from-buffer (buffer)
+  (save-excursion
+    (set-buffer buffer)
+    (set-buffer project-config-buffer)
+    project-config))
 
-(defun metaproject-open-and-setup-file (file)
-  (find-file (expand-file-name file project-base-dir))
-  (make-variable-buffer-local 'project-config-buffer)
-  (setq project-config-buffer (plist-get project-config 'project-config-buffer))
-  (add-to-list 'project-buffers (current-buffer))
-  (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))
-
-(defun metaproject-teardown-buffer (buffer)
-  (set-buffer buffer)
-  (makunbound 'project-config-buffer)
-  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
+;; Project opening and closing
+(defun metaproject-open-project (project-dir)
+  (let ((project-file-name
+         (expand-file-name metaproject-config-file-name project-dir)))
+    (if (file-exists-p project-file-name)
+        (let* ((project-config (metaproject-read-from-file project-file-name))
+	       (project-config-keys (loop for (k v) on project-config by #'cddr collect k)))
+	  (mapc (lambda (action)
+		  (metaproject-call-action project-config action)) project-config-keys))
+      (message "No project found in directory %s" project-dir))))
 
 (defun metaproject-close-project (&optional config-buffer)
   (let ((config-buffer (when (and (null config-buffer)
@@ -99,45 +121,31 @@
 	      nil)))
       t)))
 
-(defun metaproject-get-project-config-from-buffer (buffer)
-  (save-excursion
-    (set-buffer buffer)
-    (set-buffer project-config-buffer)
-    project-config))
+(defun metaproject-teardown-buffer (buffer)
+  (set-buffer buffer)
+  (makunbound 'project-config-buffer)
+  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
+
+;; File opening and closing
+(defun metaproject-open-project-files (project-config files)
+  (let ((project-base-dir (plist-get project-config 'project-base-dir))
+        (project-buffers (plist-get project-config 'project-buffers)))
+    (mapc 'metaproject-open-and-setup-file files)
+    (setq project-config (plist-put project-config 'project-buffers project-buffers))))
+
+(metaproject-register-action "files" 'metaproject-open-project-files)
+
+(defun metaproject-open-and-setup-file (file)
+  (find-file (expand-file-name file project-base-dir))
+  (make-variable-buffer-local 'project-config-buffer)
+  (setq project-config-buffer (plist-get project-config 'project-config-buffer))
+  (add-to-list 'project-buffers (current-buffer))
+  (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))
 
 (defun metaproject-remove-buffer-from-open-buffers ()
   (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
 	(project-buffers (plist-get project-config 'project-buffers)))
       (setq project-config (plist-put project-config 'project-buffers (delq (current-buffer) project-buffers)))))
-
-(defun metaproject-open-project (project-dir)
-  (let ((project-file-name
-         (expand-file-name metaproject-config-file-name project-dir)))
-    (if (file-exists-p project-file-name)
-        (let ((project-config (metaproject-read-from-file project-file-name)))
-	  (metaproject-open-project-files project-config))
-      (message "No project found in directory %s" project-dir))))
-
-(defun metaproject-is-metaproject (dir)
-  (file-exists-p (expand-file-name metaproject-config-file-name dir)))
-
-(defun metaproject-get-top-dir (dir)
-  (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
-       (when (not (null top-dir))
-	      (expand-file-name top-dir))))
-
-(defun metaproject-find-metaprojects (dir)
-  (project-util-find #'metaproject-is-metaproject dir))
-
-(defun metaproject-open-ido (arg)
-  (interactive "P")
-  (project-util-action-ido
-   #'metaproject-find-metaprojects
-   metaproject-project-dirs
-   #'metaproject-get-top-dir
-   #'metaproject-open-project
-   "Metaproject Project to open? "
-   arg))
 
 (provide 'metaproject)
 ;;; metaproject.el ends here
