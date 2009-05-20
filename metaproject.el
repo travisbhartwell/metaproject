@@ -50,10 +50,32 @@
 (defun metaproject-get-top-dir (dir)
   (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
        (when (not (null top-dir))
-	      (expand-file-name top-dir))))
+	 (expand-file-name top-dir))))
 
 (defun metaproject-find-metaprojects (dir)
   (project-util-find #'metaproject-is-metaproject dir))
+
+;; Buffer handling
+(defun metaproject-setup-buffer (project-config buffer)
+  (save-excursion
+    (let ((project-buffers (metaproject-config-get project-config 'project-buffers)))
+      (set-buffer buffer)
+      (make-variable-buffer-local 'project-config-buffer)
+      (setq project-config-buffer
+	    (metaproject-config-get project-config 'project-config-buffer))
+      (add-to-list 'project-buffers (current-buffer))
+      (metaproject-config-put project-config 'project-buffers project-buffers)
+      (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))))
+
+(defun metaproject-remove-buffer-from-open-buffers ()
+  (let ((project-config
+	 (metaproject-get-project-config-from-buffer (current-buffer)))
+	(project-buffers (metaproject-config-get project-config 'project-buffers)))
+    (setq project-config
+	  (metaproject-config-put
+	   project-config
+	   'project-buffers
+	   (delq (current-buffer) project-buffers)))))
 
 ;; Action registry
 (defvar metaproject-action-registry '()
@@ -65,12 +87,18 @@
 	  (acons action-sym action-function metaproject-action-registry))))
 
 (defun metaproject-call-action (project-config action)
-  (let ((args (plist-get project-config action))
+  (let ((args (metaproject-config-get project-config action))
 	(action-function (cdr (assoc-string action metaproject-action-registry))))
-      (when (fboundp action-function)
-	(funcall action-function project-config args))))
+    (when (fboundp action-function)
+      (funcall action-function project-config args))))
 
 ;; Project config handling
+(defun metaproject-config-get (project-config variable)
+  (plist-get project-config variable))
+
+(defun metaproject-config-put (project-config variable value)
+  (plist-put project-config variable value))
+
 (defun metaproject-read-from-file (file)
   (save-excursion
     (find-file file)
@@ -78,9 +106,12 @@
     (beginning-of-buffer)
     (make-variable-buffer-local 'project-config)
     (setq project-config (read (current-buffer)))
-    (plist-put project-config 'project-base-dir (file-name-directory file))
-    (plist-put project-config 'project-config-buffer (current-buffer))
-    (plist-put project-config 'project-buffers nil)))
+    (metaproject-config-put
+     project-config 'project-base-dir (file-name-directory file))
+    (metaproject-config-put
+     project-config 'project-config-buffer (current-buffer))
+    (metaproject-config-put
+     project-config 'project-buffers nil)))
 
 (defun metaproject-get-project-config-from-buffer (buffer)
   (save-excursion
@@ -94,24 +125,27 @@
          (expand-file-name metaproject-config-file-name project-dir)))
     (if (file-exists-p project-file-name)
         (let* ((project-config (metaproject-read-from-file project-file-name))
-	       (project-config-keys (loop for (k v) on project-config by #'cddr collect k)))
+	       (project-config-keys
+		(loop for (k v) on project-config by #'cddr collect k)))
 	  (mapc (lambda (action)
-		  (metaproject-call-action project-config action)) project-config-keys))
+		  (metaproject-call-action project-config action))
+		project-config-keys))
       (message "No project found in directory %s" project-dir))))
 
 (defun metaproject-close-project (&optional config-buffer)
   (let ((config-buffer (when (and (null config-buffer)
 				  (boundp 'project-config))
-			   (current-buffer))))
+			 (current-buffer))))
     (if (not (null config-buffer))
 	(progn
 	  (set-buffer config-buffer)
-	  (let* ((project-base-dir (plist-get project-config 'project-base-dir))
-		 (project-buffers (plist-get project-config 'project-buffers))
-		 (close-project-p (y-or-n-p
-				   (format
-				    "Closing this file will close the project.  Close project %s? "
-				    project-base-dir))))
+	  (let* ((project-base-dir (metaproject-config-get project-config 'project-base-dir))
+		 (project-buffers (metaproject-config-get project-config 'project-buffers))
+		 (close-project-p
+		  (y-or-n-p
+		   (format
+		    "Closing this file will close the project.  Close project %s? "
+		    project-base-dir))))
 	    (if close-project-p
 		(progn
 		  (if (y-or-n-p "Close all project files and buffers? ")
@@ -128,24 +162,14 @@
 
 ;; File opening and closing
 (defun metaproject-open-project-files (project-config files)
-  (let ((project-base-dir (plist-get project-config 'project-base-dir))
-        (project-buffers (plist-get project-config 'project-buffers)))
-    (mapc 'metaproject-open-and-setup-file files)
-    (setq project-config (plist-put project-config 'project-buffers project-buffers))))
+    (mapc (lambda (file) (metaproject-open-and-setup-file project-config file)) files))
 
 (metaproject-register-action "files" 'metaproject-open-project-files)
 
-(defun metaproject-open-and-setup-file (file)
-  (find-file (expand-file-name file project-base-dir))
-  (make-variable-buffer-local 'project-config-buffer)
-  (setq project-config-buffer (plist-get project-config 'project-config-buffer))
-  (add-to-list 'project-buffers (current-buffer))
-  (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))
-
-(defun metaproject-remove-buffer-from-open-buffers ()
-  (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
-	(project-buffers (plist-get project-config 'project-buffers)))
-      (setq project-config (plist-put project-config 'project-buffers (delq (current-buffer) project-buffers)))))
+(defun metaproject-open-and-setup-file (project-config file)
+  (let ((project-base-dir (metaproject-config-get project-config 'project-base-dir)))
+    (find-file (expand-file-name file project-base-dir))
+    (metaproject-setup-buffer project-config (current-buffer))))
 
 (provide 'metaproject)
 ;;; metaproject.el ends here

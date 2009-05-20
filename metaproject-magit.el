@@ -31,10 +31,15 @@
 (require 'magit)
 
 (defun metaproject-magit-status (project-config args)
-  (let ((git-dir (magit-get-top-dir (file-name-as-directory (plist-get project-config 'project-base-dir)))))
-    (when (not (null git-dir))
-      (magit-status git-dir))))
-
+  (let* ((project-top-dir
+	  (file-name-as-directory
+	   (metaproject-config-get project-config 'project-base-dir)))
+	 (git-dir (magit-get-top-dir project-top-dir)))
+    (progn
+      (when (not (null git-dir))
+	(magit-status git-dir)
+	(metaproject-setup-buffer project-config (current-buffer))))))
+  
 (metaproject-register-action "magit-status" 'metaproject-magit-status)
 
 (defcustom metaproject-magit-repo-dirs nil
