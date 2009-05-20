@@ -40,4 +40,12 @@
    "Metaproject Project to open? "
    arg))
 
+(defun metaproject-switch-buffer-ido ()
+  (interactive "P")
+  (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer))))
+    (when (not (null project-config))
+      (let* ((buffers (metaproject-config-get project-config 'project-buffers))
+	     (buffer-names (mapcar 'buffer-name buffers)))
+	(switch-to-buffer (ido-completing-read "Project buffer? " buffer-names))))))
+  
 (provide 'metaproject-ido)
