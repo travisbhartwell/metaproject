@@ -69,7 +69,9 @@
 
 ** agenda just for project files
 
-** project-specific bookmarks 
+** project-specific bookmarks
+
+** create and elscreen session for the project
 
 ** questions:
 *** I seem to be limiting the idea of a project of those files under a common sub-directory.  
@@ -81,7 +83,7 @@
     belong to one open project at a time.  If I want to allow for this,
     how to work around it?
   
-* Todo's
+* Todos
 ** action registry
 ***  each key in the .metaproject plist is associated with a given
      action
