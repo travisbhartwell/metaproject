@@ -30,7 +30,8 @@
 
 ** Open project among known projects (like magit-status-repos)
 
-** Switch to open project buffer (ido)
+** DONE Switch to open project buffer (ido)
+   CLOSED: [2009-08-12 Wed 04:15]
 
 ** Jump to or open project buffer:
 ***  magit status
@@ -41,9 +42,11 @@
 
 ** Add a keyboard sub-map for the buffers in the project that adds:
 ***  open file in project
-***  close project
+*** DONE close project
+    CLOSED: [2009-08-12 Wed 04:15]
 ***  jump to or open project buffer
-***  switch to open project buffer
+*** DONE switch to open project buffer
+    CLOSED: [2009-08-12 Wed 04:15]
 
 ** Refresh project
 ***  if new files are added to project

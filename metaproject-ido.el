@@ -41,11 +41,14 @@
    arg))
 
 (defun metaproject-switch-buffer-ido ()
-  (interactive "P")
+  (interactive)
   (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer))))
     (when (not (null project-config))
       (let* ((buffers (metaproject-config-get project-config 'project-buffers))
 	     (buffer-names (mapcar 'buffer-name buffers)))
+	(message "buffer names: %s" buffer-names)
 	(switch-to-buffer (ido-completing-read "Project buffer? " buffer-names))))))
-  
+
+(metaproject-add-binding-to-keymap "b" 'metaproject-switch-buffer-ido)
+
 (provide 'metaproject-ido)
