@@ -46,24 +46,15 @@
   :type '(repeat directory)
   :group 'metaproject)
 
-;;;###autoload
-(defcustom metaproject-minor-mode nil
-  "Toggle metaproject-minor-mode.
-     Setting this variable directly does not take effect;
-     use either \\[customize] or the function `metaproject-minor-mode'."
-  :set 'custom-set-minor-mode
-  :initialize 'custom-initialize-default
-  :version 'metaproject-version
-  :type    'boolean
-  :group   'metaproject
-  :require 'metaproject)
-
 ;; Variables
 (defvar metaproject-keymap-prefix "\C-cp"
   "The prefix for all minor mode bindings.")
 
 (defvar metaproject-keymap (make-sparse-keymap)
   "Keymap for the metaproject minor mode.")
+
+(defvar metaproject-minor-mode nil
+  "Minor mode for metaproject.")
 
 ;; General utilities
 (defun metaproject-is-metaproject (dir)
