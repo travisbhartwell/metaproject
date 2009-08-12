@@ -29,14 +29,19 @@
 (require 'metaproject)
 (require 'project-buffer-mode)
 
+(defun metaproject-project-buffer-create-buffer-name (project-top-dir)
+  (concat "*project:" project-top-dir "*"))
+
+(defun metaproject-project-buffer-get-project-top-dir (project-config)
+  (file-name-as-directory
+   (metaproject-config-get project-config 'project-base-dir)))
+
 (defun metaproject-project-buffer-mode (project-config args)
   "Just takes dummy args for now"
-  (let* ((project-top-dir
-	  (file-name-as-directory
-	   (metaproject-config-get project-config 'project-base-dir)))
+  (let* ((project-top-dir (metaproject-project-buffer-get-project-top-dir project-config))
 	 (files (metaproject-config-get project-config 'files))
 	 (config-buffer (metaproject-config-get project-config 'project-config-buffer))
-	 (buffer (generate-new-buffer (concat "*project:" project-top-dir "*"))))
+	 (buffer (generate-new-buffer (metaproject-project-buffer-create-buffer-name project-top-dir))))
     (save-excursion
       (set-buffer buffer)
       (cd project-top-dir)
@@ -47,4 +52,16 @@
 
 (metaproject-register-action "project-buffer-mode" 'metaproject-project-buffer-mode)
 
+(defun metaproject-project-buffer-switch-to ()
+  (interactive)
+  (let* ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
+	 (project-top-dir (metaproject-project-buffer-get-project-top-dir project-config))
+	 (project-buffer-buffer-name (metaproject-project-buffer-create-buffer-name project-top-dir))
+	 (project-buffer (get-buffer project-buffer-buffer-name)))
+    (when (null project-buffer))
+	(switch-to-buffer project-buffer)
+      (metaproject-project-buffer-mode project-config t)))
+
+(metaproject-add-binding-to-keymap "p" 'metaproject-project-buffer-switch-to)
+    
 (provide 'metaproject-project-buffer-mode)

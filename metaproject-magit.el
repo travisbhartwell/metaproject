@@ -42,6 +42,14 @@
   
 (metaproject-register-action "magit-status" 'metaproject-magit-status)
 
+(defun metaproject-magit-status-this-project ()
+  (interactive)
+  (let ((project-config (metaproject-get-project-config-from-buffer (current-buffer))))
+    (when (not (null project-config))
+      (metaproject-magit-status project-config t))))
+
+(metaproject-add-binding-to-keymap "g" 'metaproject-magit-status-this-project)
+
 (defcustom metaproject-magit-repo-dirs nil
   "A list of directories that contain git repos")
 
