@@ -58,10 +58,10 @@
 	 (project-top-dir (metaproject-project-buffer-get-project-top-dir project-config))
 	 (project-buffer-buffer-name (metaproject-project-buffer-create-buffer-name project-top-dir))
 	 (project-buffer (get-buffer project-buffer-buffer-name)))
-    (when (null project-buffer))
+    (if (not (null project-buffer))
 	(switch-to-buffer project-buffer)
-      (metaproject-project-buffer-mode project-config t)))
+      (metaproject-project-buffer-mode project-config t))))
 
 (metaproject-add-binding-to-keymap "p" 'metaproject-project-buffer-switch-to)
-    
+
 (provide 'metaproject-project-buffer-mode)
