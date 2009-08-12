@@ -35,15 +35,16 @@
 	  (file-name-as-directory
 	   (metaproject-config-get project-config 'project-base-dir)))
 	 (files (metaproject-config-get project-config 'files))
-	(buffer (generate-new-buffer (concat "project:" project-top-dir))))
-	(display-buffer buffer)
-	(metaproject-setup-buffer project-config buffer)
-	(with-current-buffer buffer
-	  (cd project-top-dir)
-	  (project-buffer-mode)
-	  (project-buffer-insert project-top-dir 'project project-top-dir project-top-dir)
-	  (mapc (lambda (file) (project-buffer-insert file 'file file project-top-dir)) files))))
+	 (config-buffer (metaproject-config-get project-config 'project-config-buffer))
+	 (buffer (generate-new-buffer (concat "*project:" project-top-dir "*"))))
+    (save-excursion
+      (set-buffer buffer)
+      (cd project-top-dir)
+      (project-buffer-mode)
+      (metaproject-setup-buffer project-config buffer)
+      (project-buffer-insert project-top-dir 'project project-top-dir project-top-dir)
+      (mapc (lambda (file) (project-buffer-insert file 'file file project-top-dir)) files))))
 
-(metaproject-register-action "project-buffer" 'metaproject-project-buffer-mode)
+(metaproject-register-action "project-buffer-mode" 'metaproject-project-buffer-mode)
 
 (provide 'metaproject-project-buffer-mode)
