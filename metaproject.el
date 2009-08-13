@@ -46,27 +46,47 @@
   :type '(repeat directory)
   :group 'metaproject)
 
-;; Variables
-(defvar metaproject-keymap-prefix "\C-cp"
-  "The prefix for all minor mode bindings.")
-
-(defvar metaproject-keymap (make-sparse-keymap)
-  "Keymap for the metaproject minor mode.")
-
-(defvar metaproject-minor-mode nil
-  "Minor mode for metaproject.")
-
 ;; General utilities
-(defun metaproject-is-metaproject (dir)
-  (file-exists-p (expand-file-name metaproject-config-file-name dir)))
-
 (defun metaproject-get-top-dir (dir)
   (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
        (when (not (null top-dir))
 	 (expand-file-name top-dir))))
 
 (defun metaproject-find-metaprojects (dir)
-  (project-util-find #'metaproject-is-metaproject dir))
+  (project-util-find #'metaproject-metaproject-p dir))
+
+;; metaproject minor mode and keymap
+(defvar metaproject-minor-mode nil
+  "Minor mode for metaproject.")
+
+(defvar metaproject-keymap-prefix "\C-cp"
+  "The prefix for all minor mode bindings.")
+
+(defvar metaproject-keymap (make-sparse-keymap)
+  "Keymap for the metaproject minor mode.")
+
+(define-minor-mode metaproject-minor-mode
+  "A minor mode for providing a common keymap for access to project-level
+functionality."
+  nil
+  " Metaproject"
+  metaproject-keymap
+  :group 'metaproject
+  (setq metaproject-minor-mode
+	(if (null arg) (not metaproject-minor-mode)
+	  (> (prefix-numeric-value arg) 0))))
+
+(defun metaproject-add-binding-to-keymap (key function)
+  (define-key metaproject-keymap (concat metaproject-keymap-prefix key) function))
+
+;; General Project handling
+(defun metaproject-metaproject-p (dir)
+  (file-exists-p (expand-file-name metaproject-config-file-name dir)))
+
+(defun metaproject-project-member-p ()
+  (and (boundp 'project-config-buffer)
+       (not (null project-config-buffer))
+       (not (equal (current-buffer) project-config-buffer))))
 
 ;; Buffer handling
 (defun metaproject-setup-buffer (project-config buffer)
@@ -81,11 +101,6 @@
       (metaproject-config-put project-config 'project-buffers project-buffers)
       (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))))
 
-(defun metaproject-project-member-p ()
-  (and (boundp 'project-config-buffer)
-       (not (null project-config-buffer))
-       (not (equal (current-buffer) project-config-buffer))))
-
 (defun metaproject-remove-buffer-from-open-buffers ()
   (let ((project-config
 	 (metaproject-get-project-config-from-buffer (current-buffer)))
@@ -95,6 +110,11 @@
 	   project-config
 	   'project-buffers
 	   (delq (current-buffer) project-buffers)))))
+
+(defun metaproject-teardown-buffer (buffer)
+  (set-buffer buffer)
+  (makunbound 'project-config-buffer)
+  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
 
 ;; Action registry
 (defvar metaproject-action-registry '()
@@ -167,8 +187,10 @@
     (if (not (null config-buffer))
 	(progn
 	  (set-buffer config-buffer)
-	  (let* ((project-base-dir (metaproject-config-get project-config 'project-base-dir))
-		 (project-buffers (metaproject-config-get project-config 'project-buffers))
+	  (let* ((project-base-dir
+		  (metaproject-config-get project-config 'project-base-dir))
+		 (project-buffers
+		  (metaproject-config-get project-config 'project-buffers))
 		 (close-project-p
 		  (y-or-n-p
 		   (format
@@ -180,16 +202,13 @@
 		      (progn
 			(save-some-buffers nil #'metaproject-project-member-p)
 			(mapc 'kill-buffer project-buffers))
-			
+
 		    (mapc 'metaproject-teardown-buffer project-buffers))
 		  t)
 	      nil)))
       t)))
 
-(defun metaproject-teardown-buffer (buffer)
-  (set-buffer buffer)
-  (makunbound 'project-config-buffer)
-  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
+(metaproject-add-binding-to-keymap "c" 'metaproject-close-project-from-anywhere)
 
 ;; File opening and closing
 (defun metaproject-open-project-files (project-config files)
@@ -201,24 +220,6 @@
   (let ((project-base-dir (metaproject-config-get project-config 'project-base-dir)))
     (find-file (expand-file-name file project-base-dir))
     (metaproject-setup-buffer project-config (current-buffer))))
-
-(defun metaproject-add-binding-to-keymap (key function)
-  (define-key metaproject-keymap (concat metaproject-keymap-prefix key) function))
-
-;; metaproject minor mode, to apply to all buffers belonging to a project
-(define-minor-mode metaproject-minor-mode
-  "A minor mode for providing a common keymap for access to project-level
-functionality."
-  nil
-  " Metaproject"
-  metaproject-keymap
-  :group 'metaproject
-  (setq metaproject-minor-mode
-	(if (null arg) (not metaproject-minor-mode)
-	  (> (prefix-numeric-value arg) 0))))
-
-;; Bindings for core functionality
-(metaproject-add-binding-to-keymap "c" 'metaproject-close-project-from-anywhere)
 
 (provide 'metaproject)
 ;;; metaproject.el ends here
