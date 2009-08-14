@@ -114,8 +114,8 @@ an error is signaled."
 			 (file-name-directory top-dir)
 		       name))
 	       (new-project (copy-alist metaproject-project-empty-template)))
-	  (setq new-project (metaproject-project-config-put new-project 'name name))
-	  (setq new-project (metaproject-project-config-put new-project 'top-dir top-dir))
+	  (setq new-project (metaproject-project-config-put new-project 'name name)
+		new-project (metaproject-project-config-put new-project 'top-dir top-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found top-dir))))
 
@@ -124,27 +124,58 @@ an error is signaled."
 ;; b) variable values, and so on.  I have a lot of boiler-plate code that is
 ;; currently necessary, and this is a great opportunity to use macros.  These
 ;; would use metaproject-project-config-get, etc underneath.
-(defun metaproject-project-config-get (project variable)
-  "Return from PROJECT configuration the value of VARIABLE.
+(defun metaproject-project-data-get (project sym variable)
+  "Return from PROJECT in SYM's list the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
-and the variable not existing.  Use `metaproject-project-config-member' if
+and the variable not existing.  Use `metaproject-project-data-member' if
 concerned about null values."
-  (let ((config (cdr (assoc 'config project))))
-    (plist-get config variable)))
+  (let ((data (cdr (assoc sym project))))
+    (plist-get data variable)))
 
-(defun metaproject-project-config-member (project variable)
-  "Return from PROJECT configuration the cons of VARIABLE and its value or nil if not found."
-  (let ((config (cdr (assoc 'config project))))
-    (plist-member config variable)))
+(defun metaproject-project-data-member (project sym variable)
+  "Return from PROJECT in SYM's list the cons of VARIABLE and its value or nil if not found."
+  (let ((data (cdr (assoc sym project))))
+    (plist-member data variable)))
 
-(defun metaproject-project-config-put (project variable value)
-  "On PROJECT, set VARIABLE to VALUE in the configuration.
+(defun metaproject-project-data-put (project sym variable value)
+  "On PROJECT in SYM's list, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project."
-  (let* ((config-assoc (assoc 'config project))
-	 (config (cdr config-assoc)))
-    (setcdr config-assoc (plist-put config variable value))
+  (let* ((data-assoc (assoc sym project))
+	 (data (cdr data-assoc)))
+    (setcdr data-assoc (plist-put data variable value))
     project))
+
+(defun metaproject-project-accessor-name-gen (sym suffix)
+  "Generate the accessor name for symbol SYM with suffix SUFFIX."
+   (intern (concat "metaproject-project-" (symbol-name sym) suffix)))
+
+(defmacro metaproject-project-data-accessors (sym)
+  "Generate the accessor functions `metaproject-project-*-get',
+`metaproject-project-*-member', and `metaproject-project-*-put' for SYM
+in a project."
+  (let ((name (symbol-name sym))
+	(get-fn-name (metaproject-project-accessor-name-gen sym "-get"))
+	(member-fn-name (metaproject-project-accessor-name-gen sym "-member"))
+	(put-fn-name (metaproject-project-accessor-name-gen sym "-put")))
+    `(progn
+       (defun ,get-fn-name (project variable)
+	 ,(concat "Return from the PROJECT " name " the value of VARIABLE.
+Note that this does not differentiate between a variable having a null value
+and the variable not existing.  Use `metaproject-project-" name "-member' if
+concerned about null values.")
+	 (metaproject-project-data-get project ',sym variable))
+       (defun ,member-fn-name (project variable)
+	 ,(concat "Return from the PROJECT " name " the cons of VARIABLE and its value or nil if not found.")
+	   (metaproject-project-data-get project ',sym variable))
+       (defun ,put-fn-name (project variable value)
+	 ,(concat "On PROJECT, set VARIABLE to VALUE in the " name ".
+If VARIABLE exists, overwrite the existing value.  Returns the updated
+project.")
+	 (metaproject-project-data-put project ',sym variable value)))))
+
+(metaproject-project-data-accessors config)
+(metaproject-project-data-accessors state)
 
 (defun metaproject-project-config-store (project)
   "Store the configuration for PROJECT to disk."
