@@ -88,7 +88,7 @@ are done elsewhere."
     (puthash top-dir project metaproject-current-projects)))
 
 ;;;; General Project Functions
-(defconst metaproject-project-empty '((state . nil) (config . nil))
+(defconst metaproject-project-empty-template '((state . nil) (config . nil))
   "Template for empty in-memory project structures.
 'state' will contain the current state of the project: open buffers, etc.
 'config' will contain the configuration to be persisted across project
@@ -109,7 +109,7 @@ an error is signaled."
 	(let* ((name (if (null name)
 			 (file-name-directory top-dir)
 		       name))
-	       (new-project (copy-alist metaproject-project-empty)))
+	       (new-project (copy-alist metaproject-project-empty-template)))
 	  (setq new-project (metaproject-project-config-put new-project 'name name))
 	  (setq new-project (metaproject-project-config-put new-project 'top-dir top-dir))
 	  (metaproject-current-projects-add-project new-project))
@@ -121,7 +121,7 @@ an error is signaled."
 ;; currently necessary, and this is a great opportunity to use macros.  These
 ;; would use metadata-project-data-get, etc underneath.
 (defun metaproject-project-config-get (project variable)
-  "Return from PROJECT the value of VARIABLE.
+  "Return from PROJECT configuration the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
 and the variable not existing.  Use `metaproject-project-config-member' if
 concerned about null values."
@@ -129,20 +129,21 @@ concerned about null values."
     (plist-get config variable)))
 
 (defun metaproject-project-config-member (project variable)
-  "Return from PROJECT the cons of VARIABLE and its value or nil if not found."
+  "Return from PROJECT configuration the cons of VARIABLE and its value or nil if not found."
   (let ((config (cdr (assoc 'config project))))
     (plist-member config variable)))
 
 (defun metaproject-project-config-put (project variable value)
-  "On PROJECT, set VARIABLE to VALUE.
-If VARIABLE exists, overwrite the existing value."
+  "On PROJECT, set VARIABLE to VALUE in the configuration.
+If VARIABLE exists, overwrite the existing value.  Returns the updated
+project."
   (let* ((config-assoc (assoc 'config project))
 	 (config (cdr config-assoc)))
     (setcdr config-assoc (plist-put config variable value))
     project))
 
 (defun metaproject-project-config-store (project)
-  "Store the config for PROJECT to disk."
+  "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
 	 (top-dir (metaproject-project-config-get project 'top-dir))
 	 (config-file-name (expand-file-name metaproject-config-file-name top-dir))
