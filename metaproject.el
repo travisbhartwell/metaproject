@@ -79,13 +79,18 @@ done elsewhere."
   (remhash project metaproject-current-projects))
 
 ;;;; General Project Functions
+(defconst metaproject-project-empty '((state . nil) (config . nil))
+  "Template for empty in-memory project structures.
+'state' will contain the current state of the project: open buffers, etc.
+'config' will contain the configuration to be persisted across project
+loads.")
+
 (defun metaproject-project-p (dir)
   "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
 ;; QUESTION: Should this function add the created project to the open project group,
 ;; or is this something done by a higher-level function?
-;; TODO-MAYBE: Check if this directory is in an existing project and bail.
 (defun metaproject-project-create (top-dir &optional name)
   "Create a project with the root TOP-DIR and optionally, named NAME.
 If NAME is not specified, the name of TOP-DIR (not the full path) is used.  If
@@ -97,10 +102,9 @@ an error is signaled."
 	(let* ((name (if (null name)
 			 (file-name-directory top-dir)
 		       name))
-	       ;; TODO: Fix this so it abstracts what the underlying
-	       ;; data structure is.
-	       (new-project (list 'top-dir top-dir 'name name)))
-	  new-project)
+	       (new-project (copy-alist metaproject-project-empty)))
+	  (setq new-project (metaproject-project-config-put new-project 'name name))
+	  (setq new-project (metaproject-project-config-put new-project 'top-dir top-dir)))
       (error metaproject-error-directory-not-found top-dir))))
 
 ;;;; Project state and configuration handling
@@ -111,24 +115,28 @@ an error is signaled."
 ;; b) variable values, and so on.  I have a lot of boiler-plate code that is
 ;; currently necessary, and this is a great opportunity to use macros.  These
 ;; would use metadata-project-data-get, etc underneath.
-(defun metaproject-project-data-get (project variable)
+(defun metaproject-project-config-get (project variable)
   "Return from PROJECT the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
-and the variable not existing.  Use `metaproject-project-data-member' if
+and the variable not existing.  Use `metaproject-project-config-member' if
 concerned about null values."
-  (plist-get project variable))
+  (let ((config (cdr (assoc 'config project))))
+    (plist-get config variable)))
 
-(defun metaproject-project-data-member (project variable)
+(defun metaproject-project-config-member (project variable)
   "Return from PROJECT the cons of VARIABLE and its value or nil if not found."
-  (plist-member project variable))
+  (let ((config (cdr (assoc 'config project))))
+    (plist-member config variable)))
 
-(defun metaproject-project-data-put (project variable value)
+(defun metaproject-project-config-put (project variable value)
   "On PROJECT, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value."
-  (plist-put project variable value))
+  (let* ((config-assoc (assoc 'config project))
+	 (config (cdr config-assoc)))
+    (setcdr config-assoc (plist-put config variable value))
+    project))
 
 ;;;; Metaproject Files module definition.
-
 ;; The Files module specifies the files in a project.
 ;; Its configuration is a plist with the following properties:
 ;; - files - list of file paths, all relative to the project top-dir
@@ -145,25 +153,25 @@ If VARIABLE exists, overwrite the existing value."
 These files are not necessarily currently open.  Use
 `metaproject-project-get-open-files' to get a list of the project files
 that are currently open."
-  (let ((files-config (metaproject-project-data-get project 'files)))
+  (let ((files-config (metaproject-project-config-get project 'files)))
 	 (plist-get files-config 'files)))
 
 (defun metaproject-files-put-to-project (project files)
   "Set on PROJECT the list of FILES."
-  (let ((files-config (metaproject-project-data-get project 'files)))
+  (let ((files-config (metaproject-project-config-get project 'files)))
     (setq files-config (plist-put files-config 'files files))
-    (metaproject-project-data-put project 'files files-config)))
+    (metaproject-project-config-put project 'files files-config)))
      
 (defun metaproject-file-valid-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
   (let ((expanded-file-name (expand-file-name file))
-	(top-dir (metaproject-project-data-get project 'top-dir)))
+	(top-dir (metaproject-project-config-get project 'top-dir)))
     (and
      (not (null top-dir))
      (file-exists-p expanded-file-name)
      (file-regular-p expanded-file-name)
       ;; The result of `file-relative-name' will start with "../" when the
-      ;; file is not under TOP-DIR
+      ;; file is not under TOP-DIR.  Not sure if this is portable to Windows.
      (not
       (string= "../"
 	       (substring
@@ -176,7 +184,7 @@ a valid file (i.e., not a valid file or under the project's
 directory, an error is signaled."
   (if (metaproject-file-valid-in-project-p file project)
       (let* ((expanded-file-name (expand-file-name file))
-	     (top-dir (metaproject-project-data-get project 'top-dir))
+	     (top-dir (metaproject-project-config-get project 'top-dir))
 	     (relative-file-name (file-relative-name expanded-file-name top-dir))
 	     (project-files (metaproject-files-get-from-project project)))
 	(when (not (member relative-file-name project-files))
