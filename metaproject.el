@@ -32,6 +32,10 @@
 ;; TODO: I'm not comfortable with my plist usage, I feel like it needs to be abstracted away,
 ;; But it is getting messy, again it is probably time to look into macros and that should clean
 ;; this up a ton.
+;; Also, after talking to people on #emacs, it seems that association lists are the preferred
+;; standalone structure, so after writing macros, it might be worthwhile to change the underlying
+;; structures to association lists, at least in some cases.
+
 ;;; Code:
 ; The following suggested by (info "(elisp)Coding Conventions")
 (eval-when-compile
@@ -119,7 +123,7 @@ an error is signaled."
 ;; TODO-MAYBE: Write macros for retrieving specific a) module configurations,
 ;; b) variable values, and so on.  I have a lot of boiler-plate code that is
 ;; currently necessary, and this is a great opportunity to use macros.  These
-;; would use metadata-project-data-get, etc underneath.
+;; would use metaproject-project-config-get, etc underneath.
 (defun metaproject-project-config-get (project variable)
   "Return from PROJECT configuration the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
@@ -150,7 +154,6 @@ project."
 	 (config-buffer (find-file config-file-name)))
     (save-excursion
       (set-buffer config-buffer)
-      (beginning-of-buffer)
       (print config (current-buffer))
       (save-buffer)
       (kill-buffer))))
@@ -166,7 +169,7 @@ project."
 ;; depends upon, but for simplicity, in many cases, such as project load and store
 ;; time, it is treated like any other module.  It just happens to live in the same file.
 
-;; TODO-MAYBE: Rename metaproject-project-get-open-files to something more apropos.
+;; TODO-MAYBE: Rename metaproject-project-get-open-files to something more apropos when implementing.
 (defun metaproject-files-get-from-project (project)
   "Return the list of files belonging to PROJECT.
 These files are not necessarily currently open.  Use
