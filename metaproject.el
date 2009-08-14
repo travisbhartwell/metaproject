@@ -73,10 +73,19 @@ Returns nil if a project from that path is not currently open."
   (gethash path metaproject-current-projects nil))
 
 (defun metaproject-current-projects-remove-project (project)
-  "Remove the project specified by PROJECT from the current project group.
+  "Remove the project specified by PROJECT from the current projects group.
 This does not close the project or any of its buffers, this may be
 done elsewhere."
-  (remhash project metaproject-current-projects))
+  (let ((top-dir (metaproject-project-config-get project 'top-dir)))
+    (remhash top-dir metaproject-current-projects)))
+
+(defun metaproject-current-projects-add-project (project)
+  "Add the project specified by PROJECT to the current projects group.
+It is assumed that the project itself is opened and any related operations
+are done elsewhere."
+  (let ((top-dir (metaproject-project-config-get project 'top-dir)))
+    (assert (not (null top-dir))) ; TODO: Should I do this?
+    (puthash top-dir project metaproject-current-projects)))
 
 ;;;; General Project Functions
 (defconst metaproject-project-empty '((state . nil) (config . nil))
@@ -89,8 +98,6 @@ loads.")
   "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
-;; QUESTION: Should this function add the created project to the open project group,
-;; or is this something done by a higher-level function?
 (defun metaproject-project-create (top-dir &optional name)
   "Create a project with the root TOP-DIR and optionally, named NAME.
 If NAME is not specified, the name of TOP-DIR (not the full path) is used.  If
@@ -104,13 +111,11 @@ an error is signaled."
 		       name))
 	       (new-project (copy-alist metaproject-project-empty)))
 	  (setq new-project (metaproject-project-config-put new-project 'name name))
-	  (setq new-project (metaproject-project-config-put new-project 'top-dir top-dir)))
+	  (setq new-project (metaproject-project-config-put new-project 'top-dir top-dir))
+	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found top-dir))))
 
 ;;;; Project state and configuration handling
-;; QUESTION: Should the configuration and state be stored separately?
-;; This would make it easier to persist just the config and differentiate
-;; at runtime.
 ;; TODO-MAYBE: Write macros for retrieving specific a) module configurations,
 ;; b) variable values, and so on.  I have a lot of boiler-plate code that is
 ;; currently necessary, and this is a great opportunity to use macros.  These
@@ -135,6 +140,19 @@ If VARIABLE exists, overwrite the existing value."
 	 (config (cdr config-assoc)))
     (setcdr config-assoc (plist-put config variable value))
     project))
+
+(defun metaproject-project-config-store (project)
+  "Store the config for PROJECT to disk."
+  (let* ((config (cdr (assoc 'config project)))
+	 (top-dir (metaproject-project-config-get project 'top-dir))
+	 (config-file-name (expand-file-name metaproject-config-file-name top-dir))
+	 (config-buffer (find-file config-file-name)))
+    (save-excursion
+      (set-buffer config-buffer)
+      (beginning-of-buffer)
+      (print config (current-buffer))
+      (save-buffer)
+      (kill-buffer))))
 
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
