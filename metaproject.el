@@ -154,6 +154,7 @@ project."
 	 (config-buffer (find-file config-file-name)))
     (save-excursion
       (set-buffer config-buffer)
+      (erase-buffer)
       (print config (current-buffer))
       (save-buffer)
       (kill-buffer))))
