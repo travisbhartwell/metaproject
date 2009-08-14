@@ -28,16 +28,30 @@
 ;;; History:
 ;; Version: 0.01
 ;; Date: May 7, 2009
-(require 'cl)
 
-;; Metaproject Constants
+;; TODO: I'm not comfortable with my plist usage, I feel like it needs to be abstracted away,
+;; But it is getting messy, again it is probably time to look into macros and that should clean
+;; this up a ton.
+;;; Code:
+; The following suggested by (info "(elisp)Coding Conventions")
+(eval-when-compile
+  (require 'cl))
+
+;;;; Constants
 (defconst metaproject-config-file-name ".metaproject"
   "This is the default filename used for the metaproject configuration files for each project.")
 
 (defconst metaproject-version "0.02-SNAPSHOT"
   "This is the current version of metaproject.")
 
-;; Metaproject Customization items
+;; Error messages
+(defconst metaproject-error-directory-not-found
+  "The specified directory '%s' does not exist or is not a directory")
+
+(defconst metaproject-error-not-valid-file
+  "The file '%s' is not a valid file or doesn't exist under project directory")
+
+;;;; Customization items
 (defgroup metaproject nil
   "Project support and utilities.")
 
@@ -46,180 +60,130 @@
   :type '(repeat directory)
   :group 'metaproject)
 
-;; General utilities
-(defun metaproject-get-top-dir (dir)
-  (let ((top-dir (locate-dominating-file dir metaproject-config-file-name)))
-       (when (not (null top-dir))
-	 (expand-file-name top-dir))))
+;;;; Currently Open Projects
+(defvar metaproject-current-projects (make-hash-table :test 'equal)
+  "This is the group of all of the projects that are currently open.
+It is a hash table where the keys are the top level directories of
+each project and the values are property lists containing the configuration
+information and state of each project.")
 
-(defun metaproject-find-metaprojects (dir)
-  (project-util-find #'metaproject-metaproject-p dir))
+(defun metaproject-current-projects-get-project-by-path (path)
+  "Get the currently open project that has the top level directory PATH.
+Returns nil if a project from that path is not currently open."
+  (gethash path metaproject-current-projects nil))
 
-;; metaproject minor mode and keymap
-(defvar metaproject-minor-mode nil
-  "Minor mode for metaproject.")
+(defun metaproject-current-projects-remove-project (project)
+  "Remove the project specified by PROJECT from the current project group.
+This does not close the project or any of its buffers, this may be
+done elsewhere."
+  (remhash project metaproject-current-projects))
 
-(defvar metaproject-keymap-prefix "\C-cp"
-  "The prefix for all minor mode bindings.")
-
-(defvar metaproject-keymap (make-sparse-keymap)
-  "Keymap for the metaproject minor mode.")
-
-(define-minor-mode metaproject-minor-mode
-  "A minor mode for providing a common keymap for access to project-level
-functionality."
-  nil
-  " Metaproject"
-  metaproject-keymap
-  :group 'metaproject
-  (setq metaproject-minor-mode
-	(if (null arg) (not metaproject-minor-mode)
-	  (> (prefix-numeric-value arg) 0))))
-
-(defun metaproject-add-binding-to-keymap (key function)
-  (define-key metaproject-keymap (concat metaproject-keymap-prefix key) function))
-
-;; General Project handling
-(defun metaproject-metaproject-p (dir)
+;;;; General Project Functions
+(defun metaproject-project-p (dir)
+  "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
-(defun metaproject-project-member-p ()
-  (and (boundp 'project-config-buffer)
-       (not (null project-config-buffer))
-       (not (equal (current-buffer) project-config-buffer))))
+;; QUESTION: Should this function add the created project to the open project group,
+;; or is this something done by a higher-level function?
+;; TODO-MAYBE: Check if this directory is in an existing project and bail.
+(defun metaproject-project-create (top-dir &optional name)
+  "Create a project with the root TOP-DIR and optionally, named NAME.
+If NAME is not specified, the name of TOP-DIR (not the full path) is used.  If
+the directory TOP-DIR does not exist, or is not a directory,
+an error is signaled."
+  (let ((top-dir (expand-file-name top-dir)))
+    (if (and (file-exists-p top-dir)
+	     (file-directory-p top-dir))
+	(let* ((name (if (null name)
+			 (file-name-directory top-dir)
+		       name))
+	       ;; TODO: Fix this so it abstracts what the underlying
+	       ;; data structure is.
+	       (new-project (list 'top-dir top-dir 'name name)))
+	  new-project)
+      (error metaproject-error-directory-not-found top-dir))))
 
-;; Buffer handling
-(defun metaproject-setup-buffer (project-config buffer)
-  (save-excursion
-    (let ((project-buffers (metaproject-config-get project-config 'project-buffers)))
-      (set-buffer buffer)
-      (metaproject-minor-mode t)
-      (make-variable-buffer-local 'project-config-buffer)
-      (setq project-config-buffer
-	    (metaproject-config-get project-config 'project-config-buffer))
-      (add-to-list 'project-buffers (current-buffer))
-      (metaproject-config-put project-config 'project-buffers project-buffers)
-      (add-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t t))))
+;;;; Project state and configuration handling
+;; QUESTION: Should the configuration and state be stored separately?
+;; This would make it easier to persist just the config and differentiate
+;; at runtime.
+;; TODO-MAYBE: Write macros for retrieving specific a) module configurations,
+;; b) variable values, and so on.  I have a lot of boiler-plate code that is
+;; currently necessary, and this is a great opportunity to use macros.  These
+;; would use metadata-project-data-get, etc underneath.
+(defun metaproject-project-data-get (project variable)
+  "Return from PROJECT the value of VARIABLE.
+Note that this does not differentiate between a variable having a null value
+and the variable not existing.  Use `metaproject-project-data-member' if
+concerned about null values."
+  (plist-get project variable))
 
-(defun metaproject-remove-buffer-from-open-buffers ()
-  (let ((project-config
-	 (metaproject-get-project-config-from-buffer (current-buffer)))
-	(project-buffers (metaproject-config-get project-config 'project-buffers)))
-    (setq project-config
-	  (metaproject-config-put
-	   project-config
-	   'project-buffers
-	   (delq (current-buffer) project-buffers)))))
+(defun metaproject-project-data-member (project variable)
+  "Return from PROJECT the cons of VARIABLE and its value or nil if not found."
+  (plist-member project variable))
 
-(defun metaproject-teardown-buffer (buffer)
-  (set-buffer buffer)
-  (makunbound 'project-config-buffer)
-  (remove-hook 'kill-buffer-hook 'metaproject-remove-buffer-from-open-buffers t))
+(defun metaproject-project-data-put (project variable value)
+  "On PROJECT, set VARIABLE to VALUE.
+If VARIABLE exists, overwrite the existing value."
+  (plist-put project variable value))
 
-;; Action registry
-(defvar metaproject-action-registry '()
-  "This is an alist that maps from config action names to functions that process their configuration.")
+;;;; Metaproject Files module definition.
 
-(defun metaproject-register-action (action action-function)
-  (let ((action-sym (if (not (symbolp action)) (make-symbol action) action)))
-    (setq metaproject-action-registry
-	  (acons action-sym action-function metaproject-action-registry))))
+;; The Files module specifies the files in a project.
+;; Its configuration is a plist with the following properties:
+;; - files - list of file paths, all relative to the project top-dir
+;; - find-all-at-open - find all files at project open if t
+;; - TODO: Define other keys as needed, possible are include-regexp and exclude-regexp
+;;
+;; It is one of the default modules that is always loaded and core Metaproject
+;; depends upon, but for simplicity, in many cases, such as project load and store
+;; time, it is treated like any other module.  It just happens to live in the same file.
 
-(defun metaproject-call-action (project-config action)
-  (let ((args (metaproject-config-get project-config action))
-	(action-function (cdr (assoc-string action metaproject-action-registry))))
-    (when (fboundp action-function)
-      (funcall action-function project-config args))))
+;; TODO-MAYBE: Rename metaproject-project-get-open-files to something more apropos.
+(defun metaproject-files-get-from-project (project)
+  "Return the list of files belonging to PROJECT.
+These files are not necessarily currently open.  Use
+`metaproject-project-get-open-files' to get a list of the project files
+that are currently open."
+  (let ((files-config (metaproject-project-data-get project 'files)))
+	 (plist-get files-config 'files)))
 
-;; Project config handling
-(defun metaproject-config-get (project-config variable)
-  (plist-get project-config variable))
-
-(defun metaproject-config-put (project-config variable value)
-  (plist-put project-config variable value))
-
-(defun metaproject-read-from-file (file)
-  (save-excursion
-    (find-file file)
-    (add-hook 'kill-buffer-query-functions 'metaproject-close-project t t)
-    (metaproject-minor-mode t)
-    (beginning-of-buffer)
-    (make-variable-buffer-local 'project-config)
-    (setq project-config (read (current-buffer)))
-    (metaproject-config-put
-     project-config 'project-base-dir (file-name-directory file))
-    (metaproject-config-put
-     project-config 'project-config-buffer (current-buffer))
-    (metaproject-config-put
-     project-config 'project-buffers nil)))
-
-(defun metaproject-get-project-config-from-buffer (buffer)
-  (save-excursion
-    (set-buffer buffer)
-    (set-buffer project-config-buffer)
-    project-config))
-
-;; Project opening and closing
-(defun metaproject-open-project (project-dir)
-  (let ((project-file-name
-         (expand-file-name metaproject-config-file-name project-dir)))
-    (if (file-exists-p project-file-name)
-        (let* ((project-config (metaproject-read-from-file project-file-name))
-	       (project-config-keys
-		(loop for (k v) on project-config by #'cddr collect k)))
-	  (mapc (lambda (action)
-		  (metaproject-call-action project-config action))
-		project-config-keys))
-      (message "No project found in directory %s" project-dir))))
-
-(defun metaproject-close-project-from-anywhere ()
-  (interactive)
-  (let* ((project-config (metaproject-get-project-config-from-buffer (current-buffer)))
-	 (config-buffer (metaproject-config-get project-config 'project-config-buffer)))
-    (when (not (null config-buffer))
-	(kill-buffer config-buffer))))
-
-(defun metaproject-close-project (&optional config-buffer)
-  (let ((config-buffer (if (and (null config-buffer)
-				  (boundp 'project-config))
-			   (current-buffer)
-			 config-buffer)))
-    (if (not (null config-buffer))
-	(progn
-	  (set-buffer config-buffer)
-	  (let* ((project-base-dir
-		  (metaproject-config-get project-config 'project-base-dir))
-		 (project-buffers
-		  (metaproject-config-get project-config 'project-buffers))
-		 (close-project-p
-		  (y-or-n-p
-		   (format
-		    "Closing this file will close the project.  Close project %s? "
-		    project-base-dir))))
-	    (if close-project-p
-		(progn
-		  (if (y-or-n-p "Close all project files and buffers? ")
-		      (progn
-			(save-some-buffers nil #'metaproject-project-member-p)
-			(mapc 'kill-buffer project-buffers))
-
-		    (mapc 'metaproject-teardown-buffer project-buffers))
-		  t)
-	      nil)))
-      t)))
-
-(metaproject-add-binding-to-keymap "c" 'metaproject-close-project-from-anywhere)
-
-;; File opening and closing
-(defun metaproject-open-project-files (project-config files)
-    (mapc (lambda (file) (metaproject-open-and-setup-file project-config file)) files))
-
-(metaproject-register-action "files" 'metaproject-open-project-files)
-
-(defun metaproject-open-and-setup-file (project-config file)
-  (let ((project-base-dir (metaproject-config-get project-config 'project-base-dir)))
-    (find-file (expand-file-name file project-base-dir))
-    (metaproject-setup-buffer project-config (current-buffer))))
-
+(defun metaproject-files-put-to-project (project files)
+  "Set on PROJECT the list of FILES."
+  (let ((files-config (metaproject-project-data-get project 'files)))
+    (setq files-config (plist-put files-config 'files files))
+    (metaproject-project-data-put project 'files files-config)))
+     
+(defun metaproject-file-valid-in-project-p (file project)
+  "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
+  (let ((expanded-file-name (expand-file-name file))
+	(top-dir (metaproject-project-data-get project 'top-dir)))
+    (and
+     (not (null top-dir))
+     (file-exists-p expanded-file-name)
+     (file-regular-p expanded-file-name)
+      ;; The result of `file-relative-name' will start with "../" when the
+      ;; file is not under TOP-DIR
+     (not
+      (string= "../"
+	       (substring
+		(file-relative-name expanded-file-name top-dir) 0 3))))))
+  
+(defun metaproject-project-add-file (project file)
+  "Add to the project PROJECT the file FILE.
+Only add FILE if it isn't already a member of PROJECT.  If FILE is not
+a valid file (i.e., not a valid file or under the project's
+directory, an error is signaled."
+  (if (metaproject-file-valid-in-project-p file project)
+      (let* ((expanded-file-name (expand-file-name file))
+	     (top-dir (metaproject-project-data-get project 'top-dir))
+	     (relative-file-name (file-relative-name expanded-file-name top-dir))
+	     (project-files (metaproject-files-get-from-project project)))
+	(when (not (member relative-file-name project-files))
+	  (metaproject-files-put-to-project
+	   project
+	   (append project-files (list relative-file-name)))))
+    (error metaproject-error-not-valid-file file)))
+  
 (provide 'metaproject)
 ;;; metaproject.el ends here
