@@ -38,6 +38,8 @@
 (defconst metaproject-config-file-name ".metaproject"
   "This is the default filename used for the metaproject configuration files for each project.")
 
+(add-to-list 'auto-mode-alist '("\\.metaproject$" . emacs-lisp-mode))
+
 (defconst metaproject-version "0.02-SNAPSHOT"
   "This is the current version of metaproject.")
 
@@ -108,9 +110,9 @@ directory, an error is signaled."
 	     (file-directory-p top-dir))
 	(let* ((name (if (null name)
 			 (file-name-directory top-dir)
-		       name))
-	       (new-project (copy-alist metaproject-project-empty-template)))
-	  (setq new-project (metaproject-project-config-put new-project 'name name)
+		       name)))
+	  (setq new-project (copy-alist metaproject-project-empty-template)
+		new-project (metaproject-project-config-put new-project 'name name)
 		new-project (metaproject-project-state-put new-project 'top-dir top-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found top-dir))))
