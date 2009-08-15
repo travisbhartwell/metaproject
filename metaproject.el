@@ -52,7 +52,8 @@
 
 ;;;; Customization items
 (defgroup metaproject nil
-  "Project support and utilities.")
+  "Project support and utilities."
+  :group 'tools)
 
 (defcustom metaproject-project-dirs nil
   "This is a list of the directories that contain project directories."
@@ -86,7 +87,9 @@ are done elsewhere."
     (assert (not (null project-base-dir)))
     (puthash project-base-dir project metaproject-current-projects)))
 
-;;;; General Project Functions
+;;;; General Project support
+(defvar metaproject-project-parts (list (make-symbol "state") (make-symbol "config")))
+
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
   "Template for empty in-memory project structures.
 'state' will contain the current state of the project: open buffers, etc.
@@ -110,9 +113,9 @@ directory, an error is signaled."
 	     (file-directory-p project-base-dir))
 	(let* ((name (if (null name)
 			 (file-name-directory project-base-dir)
-		       name)))
-	  (setq new-project (copy-alist metaproject-project-empty-template)
-		new-project (metaproject-project-config-put new-project 'name name)
+		       name))
+	       (new-project (copy-alist metaproject-project-empty-template)))
+	  (setq new-project (metaproject-project-config-put new-project 'name name)
 		new-project (metaproject-project-state-put new-project 'project-base-dir project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found project-base-dir))))
@@ -140,18 +143,15 @@ project."
     (setcdr data-assoc (plist-put data variable value))
     project))
 
-(defun metaproject-project-accessor-name-gen (sym suffix)
-  "Generate the accessor name for symbol SYM with suffix SUFFIX."
-   (intern (concat "metaproject-project-" (symbol-name sym) suffix)))
-
 (defmacro metaproject-project-data-accessors (sym)
   "Generate the accessor functions for SYM in a project.
 This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
 and `metaproject-project-*-put'."
-  (let ((name (symbol-name sym))
-	(get-fn-name (metaproject-project-accessor-name-gen sym "-get"))
-	(member-fn-name (metaproject-project-accessor-name-gen sym "-member"))
-	(put-fn-name (metaproject-project-accessor-name-gen sym "-put")))
+  (let* ((name (symbol-name sym))
+	 (prefix "metaproject-project-")
+	 (get-fn-name (intern (concat prefix name "-get")))
+	 (member-fn-name (intern (concat prefix name "-member")))
+	 (put-fn-name (intern (concat prefix name "-put"))))
     `(progn
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the value of VARIABLE.
@@ -167,6 +167,7 @@ concerned about null values.")
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project.")
 	 (metaproject-project-data-put project ',sym variable value)))))
+
 
 (metaproject-project-data-accessors config)
 (metaproject-project-data-accessors state)
@@ -191,13 +192,12 @@ project.")
     (if (metaproject-project-p project-base-dir)
 	(save-excursion
 	  (find-file project-file-name)
-	  (beginning-of-buffer)
-	  (setq project-config (read (current-buffer)))
-	  (setcdr (assoc 'config new-project) project-config)
-	  (metaproject-project-state-put new-project 'project-base-dir project-base-dir)
-	  (metaproject-current-projects-add-project new-project)
-	  (kill-buffer)
-	  new-project))))
+	  (let ((project-config (read (current-buffer))))
+	    (setcdr (assoc 'config new-project) project-config)
+	    (metaproject-project-state-put new-project 'project-base-dir project-base-dir)
+	    (metaproject-current-projects-add-project new-project)
+	    (kill-buffer)
+	    new-project)))))
     
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
@@ -239,7 +239,7 @@ that are currently open."
      (file-exists-p expanded-file-name)
      (file-regular-p expanded-file-name))))
   
-(defun metaproject-project-add-file (project file)
+(defun metaproject-files-add-file-to-project (project file)
   "Add to the project PROJECT the file FILE.
 Only add FILE if it isn't already a member of PROJECT.  FILE is
 assumed to be an absolute pathname or relative to PROJECT's project-base-dir.
