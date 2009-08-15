@@ -97,9 +97,12 @@ loads.")
 
 (defun metaproject-project-create (top-dir &optional name)
   "Create a project with the root TOP-DIR and optionally, named NAME.
-If NAME is not specified, the name of TOP-DIR (not the full path) is used.  If
-the directory TOP-DIR does not exist, or is not a directory,
-an error is signaled."
+If TOP-DIR is not an absolute path name, it is assumed to be relative
+to the current buffer's `default-directory', which could be
+unexpected, so it is preferred to call this with an absolute path.
+If NAME is not specified, the directory name of TOP-DIR (not the full
+path) is used.  If the directory TOP-DIR does not exist, or is not a
+directory, an error is signaled."
   (let ((top-dir (expand-file-name top-dir)))
     (if (and (file-exists-p top-dir)
 	     (file-directory-p top-dir))
@@ -205,29 +208,28 @@ that are currently open."
     (setq files-config (plist-put files-config 'files files))
     (metaproject-project-config-put project 'files files-config)))
      
-(defun metaproject-file-valid-in-project-p (file project)
+(defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
-  (let ((expanded-file-name (expand-file-name file))
-	(top-dir (metaproject-project-state-get project 'top-dir)))
+  (let* ((top-dir (metaproject-project-state-get project 'top-dir))
+	 (default-directory top-dir)
+	 (expanded-file-name (file-relative-name (expand-file-name file top-dir) top-dir)))
     (and
      (not (null top-dir))
+     ;; The result of `file-relative-name' will start with "../" when the
+     ;; file is not under TOP-DIR.  Not sure if this is portable to Windows.
+     (not (string= "../" (substring expanded-file-name 0 3)))
      (file-exists-p expanded-file-name)
-     (file-regular-p expanded-file-name)
-      ;; The result of `file-relative-name' will start with "../" when the
-      ;; file is not under TOP-DIR.  Not sure if this is portable to Windows.
-     (not
-      (string= "../"
-	       (substring
-		(file-relative-name expanded-file-name top-dir) 0 3))))))
+     (file-regular-p expanded-file-name))))
   
 (defun metaproject-project-add-file (project file)
   "Add to the project PROJECT the file FILE.
-Only add FILE if it isn't already a member of PROJECT.  If FILE is not
-a valid file (i.e., not a valid file or under the project's
-directory, an error is signaled."
-  (if (metaproject-file-valid-in-project-p file project)
-      (let* ((expanded-file-name (expand-file-name file))
-	     (top-dir (metaproject-project-state-get project 'top-dir))
+Only add FILE if it isn't already a member of PROJECT.  FILE is
+assumed to be an absolute pathname or relative to PROJECT's top-dir.
+If FILE is not a valid file (i.e., not a valid file or under the
+project's directory), an error is signaled."
+  (if (metaproject-files-valid-file-in-project-p file project)
+      (let* ((top-dir (metaproject-project-state-get project 'top-dir))
+	     (expanded-file-name (expand-file-name file top-dir))
 	     (relative-file-name (file-relative-name expanded-file-name top-dir))
 	     (project-files (metaproject-files-get-from-project project)))
 	(when (not (member relative-file-name project-files))
