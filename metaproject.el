@@ -29,13 +29,6 @@
 ;; Version: 0.01
 ;; Date: May 7, 2009
 
-;; TODO: I'm not comfortable with my plist usage, I feel like it needs to be abstracted away,
-;; But it is getting messy, again it is probably time to look into macros and that should clean
-;; this up a ton.
-;; Also, after talking to people on #emacs, it seems that association lists are the preferred
-;; standalone structure, so after writing macros, it might be worthwhile to change the underlying
-;; structures to association lists, at least in some cases.
-
 ;;; Code:
 ; The following suggested by (info "(elisp)Coding Conventions")
 (eval-when-compile
@@ -80,15 +73,15 @@ Returns nil if a project from that path is not currently open."
   "Remove the project specified by PROJECT from the current projects group.
 This does not close the project or any of its buffers, this may be
 done elsewhere."
-  (let ((top-dir (metaproject-project-config-get project 'top-dir)))
+  (let ((top-dir (metaproject-project-state-get project 'top-dir)))
     (remhash top-dir metaproject-current-projects)))
 
 (defun metaproject-current-projects-add-project (project)
   "Add the project specified by PROJECT to the current projects group.
 It is assumed that the project itself is opened and any related operations
 are done elsewhere."
-  (let ((top-dir (metaproject-project-config-get project 'top-dir)))
-    (assert (not (null top-dir))) ; TODO: Should I do this?
+  (let ((top-dir (metaproject-project-state-get project 'top-dir)))
+    (assert (not (null top-dir)))
     (puthash top-dir project metaproject-current-projects)))
 
 ;;;; General Project Functions
@@ -115,15 +108,11 @@ an error is signaled."
 		       name))
 	       (new-project (copy-alist metaproject-project-empty-template)))
 	  (setq new-project (metaproject-project-config-put new-project 'name name)
-		new-project (metaproject-project-config-put new-project 'top-dir top-dir))
+		new-project (metaproject-project-state-put new-project 'top-dir top-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found top-dir))))
 
 ;;;; Project state and configuration handling
-;; TODO-MAYBE: Write macros for retrieving specific a) module configurations,
-;; b) variable values, and so on.  I have a lot of boiler-plate code that is
-;; currently necessary, and this is a great opportunity to use macros.  These
-;; would use metaproject-project-config-get, etc underneath.
 (defun metaproject-project-data-get (project sym variable)
   "Return from PROJECT in SYM's list the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
@@ -151,9 +140,9 @@ project."
    (intern (concat "metaproject-project-" (symbol-name sym) suffix)))
 
 (defmacro metaproject-project-data-accessors (sym)
-  "Generate the accessor functions `metaproject-project-*-get',
-`metaproject-project-*-member', and `metaproject-project-*-put' for SYM
-in a project."
+  "Generate the accessor functions for SYM in a project.
+This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
+and `metaproject-project-*-put'."
   (let ((name (symbol-name sym))
 	(get-fn-name (metaproject-project-accessor-name-gen sym "-get"))
 	(member-fn-name (metaproject-project-accessor-name-gen sym "-member"))
@@ -180,7 +169,7 @@ project.")
 (defun metaproject-project-config-store (project)
   "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
-	 (top-dir (metaproject-project-config-get project 'top-dir))
+	 (top-dir (metaproject-project-state-get project 'top-dir))
 	 (config-file-name (expand-file-name metaproject-config-file-name top-dir))
 	 (config-buffer (find-file config-file-name)))
     (save-excursion
@@ -219,7 +208,7 @@ that are currently open."
 (defun metaproject-file-valid-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
   (let ((expanded-file-name (expand-file-name file))
-	(top-dir (metaproject-project-config-get project 'top-dir)))
+	(top-dir (metaproject-project-state-get project 'top-dir)))
     (and
      (not (null top-dir))
      (file-exists-p expanded-file-name)
@@ -238,7 +227,7 @@ a valid file (i.e., not a valid file or under the project's
 directory, an error is signaled."
   (if (metaproject-file-valid-in-project-p file project)
       (let* ((expanded-file-name (expand-file-name file))
-	     (top-dir (metaproject-project-config-get project 'top-dir))
+	     (top-dir (metaproject-project-state-get project 'top-dir))
 	     (relative-file-name (file-relative-name expanded-file-name top-dir))
 	     (project-files (metaproject-files-get-from-project project)))
 	(when (not (member relative-file-name project-files))

@@ -3,6 +3,11 @@
 #+STARTUP: lognotestate
 #+SEQ_TODO: TODO(t) STARTED(s) WAITING(w) | DONE(d) DELEGATED(g) CANCELED(c) NOTE
 
+* Notes
+** [2009-08-14 Fri 03:29]
+(defmacro mp-ib-fp (name)
+  `(funcall check-it ,(eval name)))
+
 * Notes and plans:
 ** Open project
 ***  open all files in a project, including project supporting buffers
@@ -116,4 +121,3 @@
 *** TODO Add descriptions to the top of the .el files
 *** TODO Add usage instructions
 *** TODO run checkdoc and fix any errors it reports  
-
