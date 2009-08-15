@@ -75,16 +75,16 @@ Returns nil if a project from that path is not currently open."
   "Remove the project specified by PROJECT from the current projects group.
 This does not close the project or any of its buffers, this may be
 done elsewhere."
-  (let ((top-dir (metaproject-project-state-get project 'top-dir)))
-    (remhash top-dir metaproject-current-projects)))
+  (let ((project-base-dir (metaproject-project-state-get project 'project-base-dir)))
+    (remhash project-base-dir metaproject-current-projects)))
 
 (defun metaproject-current-projects-add-project (project)
   "Add the project specified by PROJECT to the current projects group.
 It is assumed that the project itself is opened and any related operations
 are done elsewhere."
-  (let ((top-dir (metaproject-project-state-get project 'top-dir)))
-    (assert (not (null top-dir)))
-    (puthash top-dir project metaproject-current-projects)))
+  (let ((project-base-dir (metaproject-project-state-get project 'project-base-dir)))
+    (assert (not (null project-base-dir)))
+    (puthash project-base-dir project metaproject-current-projects)))
 
 ;;;; General Project Functions
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
@@ -97,25 +97,25 @@ loads.")
   "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
-(defun metaproject-project-create (top-dir &optional name)
-  "Create a project with the root TOP-DIR and optionally, named NAME.
-If TOP-DIR is not an absolute path name, it is assumed to be relative
+(defun metaproject-project-create (project-base-dir &optional name)
+  "Create a project with the root PROJECT-BASE-DIR and optionally, named NAME.
+If PROJECT-BASE-DIR is not an absolute path name, it is assumed to be relative
 to the current buffer's `default-directory', which could be
 unexpected, so it is preferred to call this with an absolute path.
-If NAME is not specified, the directory name of TOP-DIR (not the full
-path) is used.  If the directory TOP-DIR does not exist, or is not a
+If NAME is not specified, the directory name of PROJECT-BASE-DIR (not the full
+path) is used.  If the directory PROJECT-BASE-DIR does not exist, or is not a
 directory, an error is signaled."
-  (let ((top-dir (expand-file-name top-dir)))
-    (if (and (file-exists-p top-dir)
-	     (file-directory-p top-dir))
+  (let ((project-base-dir (expand-file-name project-base-dir)))
+    (if (and (file-exists-p project-base-dir)
+	     (file-directory-p project-base-dir))
 	(let* ((name (if (null name)
-			 (file-name-directory top-dir)
+			 (file-name-directory project-base-dir)
 		       name)))
 	  (setq new-project (copy-alist metaproject-project-empty-template)
 		new-project (metaproject-project-config-put new-project 'name name)
-		new-project (metaproject-project-state-put new-project 'top-dir top-dir))
+		new-project (metaproject-project-state-put new-project 'project-base-dir project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
-      (error metaproject-error-directory-not-found top-dir))))
+      (error metaproject-error-directory-not-found project-base-dir))))
 
 ;;;; Project state and configuration handling
 (defun metaproject-project-data-get (project sym variable)
@@ -174,8 +174,8 @@ project.")
 (defun metaproject-project-config-store (project)
   "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
-	 (top-dir (metaproject-project-state-get project 'top-dir))
-	 (config-file-name (expand-file-name metaproject-config-file-name top-dir))
+	 (project-base-dir (metaproject-project-state-get project 'project-base-dir))
+	 (config-file-name (expand-file-name metaproject-config-file-name project-base-dir))
 	 (config-buffer (find-file config-file-name)))
     (save-excursion
       (set-buffer config-buffer)
@@ -186,15 +186,15 @@ project.")
 
 (defun metaproject-project-config-load (project-file-name)
   "Load the configuration for a project from PROJECT-FILE-NAME."
-  (let ((top-dir (or (file-name-directory project-file-name) default-directory))
+  (let ((project-base-dir (or (file-name-directory project-file-name) default-directory))
 	(new-project (copy-alist metaproject-project-empty-template)))
-    (if (metaproject-project-p top-dir)
+    (if (metaproject-project-p project-base-dir)
 	(save-excursion
 	  (find-file project-file-name)
 	  (beginning-of-buffer)
 	  (setq project-config (read (current-buffer)))
 	  (setcdr (assoc 'config new-project) project-config)
-	  (metaproject-project-state-put new-project 'top-dir top-dir)
+	  (metaproject-project-state-put new-project 'project-base-dir project-base-dir)
 	  (metaproject-current-projects-add-project new-project)
 	  (kill-buffer)
 	  new-project))))
@@ -202,7 +202,7 @@ project.")
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
 ;; Its configuration is a plist with the following properties:
-;; - files - list of file paths, all relative to the project top-dir
+;; - files - list of file paths, all relative to the project project-base-dir
 ;; - find-all-at-open - find all files at project open if t
 ;; - TODO: Define other keys as needed, possible are include-regexp and exclude-regexp
 ;;
@@ -228,13 +228,13 @@ that are currently open."
      
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
-  (let* ((top-dir (metaproject-project-state-get project 'top-dir))
-	 (default-directory top-dir)
-	 (expanded-file-name (file-relative-name (expand-file-name file top-dir) top-dir)))
+  (let* ((project-base-dir (metaproject-project-state-get project 'project-base-dir))
+	 (default-directory project-base-dir)
+	 (expanded-file-name (file-relative-name (expand-file-name file project-base-dir) project-base-dir)))
     (and
-     (not (null top-dir))
+     (not (null project-base-dir))
      ;; The result of `file-relative-name' will start with "../" when the
-     ;; file is not under TOP-DIR.  Not sure if this is portable to Windows.
+     ;; file is not under PROJECT-BASE-DIR.  Not sure if this is portable to Windows.
      (not (string= "../" (substring expanded-file-name 0 3)))
      (file-exists-p expanded-file-name)
      (file-regular-p expanded-file-name))))
@@ -242,13 +242,13 @@ that are currently open."
 (defun metaproject-project-add-file (project file)
   "Add to the project PROJECT the file FILE.
 Only add FILE if it isn't already a member of PROJECT.  FILE is
-assumed to be an absolute pathname or relative to PROJECT's top-dir.
+assumed to be an absolute pathname or relative to PROJECT's project-base-dir.
 If FILE is not a valid file (i.e., not a valid file or under the
 project's directory), an error is signaled."
   (if (metaproject-files-valid-file-in-project-p file project)
-      (let* ((top-dir (metaproject-project-state-get project 'top-dir))
-	     (expanded-file-name (expand-file-name file top-dir))
-	     (relative-file-name (file-relative-name expanded-file-name top-dir))
+      (let* ((project-base-dir (metaproject-project-state-get project 'project-base-dir))
+	     (expanded-file-name (expand-file-name file project-base-dir))
+	     (relative-file-name (file-relative-name expanded-file-name project-base-dir))
 	     (project-files (metaproject-files-get-from-project project)))
 	(when (not (member relative-file-name project-files))
 	  (metaproject-files-put-to-project
