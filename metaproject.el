@@ -184,6 +184,21 @@ project.")
       (save-buffer)
       (kill-buffer))))
 
+(defun metaproject-project-config-load (project-file-name)
+  "Load the configuration for a project from PROJECT-FILE-NAME."
+  (let ((top-dir (or (file-name-directory project-file-name) default-directory))
+	(new-project (copy-alist metaproject-project-empty-template)))
+    (if (metaproject-project-p top-dir)
+	(save-excursion
+	  (find-file project-file-name)
+	  (beginning-of-buffer)
+	  (setq project-config (read (current-buffer)))
+	  (setcdr (assoc 'config new-project) project-config)
+	  (metaproject-project-state-put new-project 'top-dir top-dir)
+	  (metaproject-current-projects-add-project new-project)
+	  (kill-buffer)
+	  new-project))))
+    
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
 ;; Its configuration is a plist with the following properties:
@@ -191,6 +206,7 @@ project.")
 ;; - find-all-at-open - find all files at project open if t
 ;; - TODO: Define other keys as needed, possible are include-regexp and exclude-regexp
 ;;
+
 ;; It is one of the default modules that is always loaded and core Metaproject
 ;; depends upon, but for simplicity, in many cases, such as project load and store
 ;; time, it is treated like any other module.  It just happens to live in the same file.
