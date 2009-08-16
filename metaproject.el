@@ -52,6 +52,20 @@
 ;; for the various functions and variables for how modules should be
 ;; implemented and what they can do.
 
+
+;; A bit of Metaproject philosophy is borrowed from the Zen of Python:
+;; 'Explicit is better than implicit.'  Or perhaps the Principle of
+;; Least Astonishment applys a bit better in this  case.  Anyway,
+;; what I mean is that Metaproject (or its modules) should not do
+;; anything the user has not explicitly asked for.  This means, for
+;; example that even if the user has configuration for a module
+;; in their project file, it should not load the corresponding
+;; buffers until explcitly told to.  The 'files' module, for example,
+;; is a way of specifying what files are in a project.  It can,
+;; in its open action, automatically open all of the files specified
+;; and do this when the project is opened.  But, in the default
+;; configuration, this does not happen.
+
 ;; Some may ask why I wrote this instead of using any of the half
 ;; dozen or so other "project" modes for Emacs that are listed on the
 ;; EmacsWiki.  None of the ones I looked at did quite what I wanted.
@@ -136,13 +150,17 @@ are done elsewhere."
     (puthash project-base-dir project metaproject-current-projects)))
 
 ;;;; General Project support
-(defvar metaproject-project-parts (list (make-symbol "state") (make-symbol "config")))
+(defconst metaproject-project-parts (list (make-symbol "state") (make-symbol "config"))
+  "These are the symbols that are used in the in-memory project structures.
+'state' will contain the current state of the project: open buffers, etc.
+'config' will contain the configuration to be persisted across project loads.
+
+Note this constant is primarily for documentation and symbol creation
+purposes and is not explicitly referenced elsewhere at the moment.")
+
 
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
-  "Template for empty in-memory project structures.
-'state' will contain the current state of the project: open buffers, etc.
-'config' will contain the configuration to be persisted across project
-loads.")
+  "Template for empty in-memory project structures.")
 
 (defun metaproject-project-p (dir)
   "Return t if the directory DIR is the top level of a Metaproject project."
@@ -245,6 +263,19 @@ project.")
 	    (metaproject-current-projects-add-project new-project)
 	    (kill-buffer)
 	    new-project)))))
+
+;; Module helpers
+(defconst metaproject-module-config-parts (list (make-symbol "autoload"))
+  "These are the symbols that are common in all of the module definitions.
+'autoload' indicates whether this module's open function is to be run
+when the project is opened.
+
+Note this constant is primarily for documentation and symbol creation
+purposes and is not explicitly referenced elsewhere at the moment.")
+
+(defconst metaproject-module-config-empty-template '((autoload . nil))
+  "Template for empty in-memory module configuration with default values.
+'autoload' defaults to nil, the user should explicitly turn on loading.")
 
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
