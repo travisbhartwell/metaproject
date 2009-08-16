@@ -203,7 +203,7 @@ project."
     (setcdr data-assoc (plist-put data variable value))
     project))
 
-(defmacro metaproject-project-data-accessors (sym)
+(defmacro define-metaproject-project-data-accessors (sym)
   "Generate the accessor functions for SYM in a project.
 This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
 and `metaproject-project-*-put'."
@@ -228,8 +228,8 @@ If VARIABLE exists, overwrite the existing value.  Returns the updated
 project.")
 	 (metaproject-project-data-put project ',sym variable value)))))
 
-(metaproject-project-data-accessors config)
-(metaproject-project-data-accessors state)
+(define-metaproject-project-data-accessors config)
+(define-metaproject-project-data-accessors state)
 
 (defun metaproject-project-config-store (project)
   "Store the configuration for PROJECT to disk."
