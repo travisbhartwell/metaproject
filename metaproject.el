@@ -126,7 +126,7 @@
 (defvar metaproject-current-projects (make-hash-table :test 'equal)
   "The group of all of the projects that are currently open.
 It is a hash table where the keys are the top level directories of
-each project and the values are property lists containing the configuration
+each project and the values are lists containing the configuration
 information and state of each project.")
 
 (defun metaproject-current-projects-get-project-by-path (path)
@@ -247,7 +247,7 @@ project.")
       (erase-buffer)
       (print config (current-buffer))
       (save-buffer)
-      (kill-buffer))))
+      (kill-buffer (current-buffer)))))
 
 (defun metaproject-project-config-load (project-file-name)
   "Load the configuration for a project from PROJECT-FILE-NAME."
@@ -260,7 +260,7 @@ project.")
 	    (setcdr (assoc 'config new-project) project-config)
 	    (metaproject-project-state-put new-project 'project-base-dir project-base-dir)
 	    (metaproject-current-projects-add-project new-project)
-	    (kill-buffer)
+	    (kill-buffer (current-buffer))
 	    new-project)))))
 
 ;; Module helpers
