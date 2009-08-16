@@ -22,14 +22,62 @@
 ;; MA 02111-1307, USA.
 
 ;;; Commentary:
+;; Metaproject is a library providing functionality centered around
+;; the the idea of a project.  A project is simply a group of related
+;; files and buffers, with all of the files located under a common
+;; directory.
 
-;;; TODO: Summary goes here
+;; I originally wrote Metaproject as I found it a pain to always open
+;; the same small group of source files I was working on and I
+;; realized that most of what I do is in context of a given "project"
+;; and that it would be simpler if many of the common operations I do
+;; in Emacs -- including buffer switching, using a version control
+;; system, opening and closing files, etc are almost always around a
+;; related set of things.
+
+;; But I also realized that the set of "things" I do are not
+;; necessarily the same set of "things" others do.  For example, I use
+;; the excellent mode magit for interacting with my git
+;; repositories. It doesn't ship with Emacs. Others may not even use
+;; git.  So I wanted some of the functionality to be optional, but
+;; still be integrated seamlessly when used.
+
+;; This lead to the current architecture.  All but the most core
+;; functions that manipulate a project's data and the global project
+;; list are found in what I term 'modules'.  These modules will
+;; register with the core when loaded.  Only when configuration for a
+;; given module is found in a project and the module is loaded will it
+;; be used.  I hope that it will prove to be both flexible enough and
+;; powerful enough to meet other's needs.  Look in the documentation
+;; for the various functions and variables for how modules should be
+;; implemented and what they can do.
+
+;; Some may ask why I wrote this instead of using any of the half
+;; dozen or so other "project" modes for Emacs that are listed on the
+;; EmacsWiki.  None of the ones I looked at did quite what I wanted.
+;; I wasn't looking for having common settings for my project --
+;; though that is certainly a possibility.  I wasn't concerned about
+;; something to generate Makefiles or handle compilation -- though
+;; that would be nice.  I wasn't looking for a nice view of all of my
+;; files -- though it would be helpful.  I hope that this way of doing
+;; projects is a little more flexible and will eventually allow many
+;; of these other things.
+
+;; I welcome comments, critiques, patches, whatever.  This is my first
+;; major Emacs Lisp code beyond what I have in my ~/.emacs and so I'm
+;; learning how to do things.  Any help and improvement would be
+;; welcome!
+
+;; Usage:
+;; TODO: Explain usage.
 
 ;;; History:
 ;; Version: 0.01
 ;; Date: May 7, 2009
 
 ;;; Code:
+(eval-when-compile (setq byte-compile-dynamic t))
+
 ; The following suggested by (info "(elisp)Coding Conventions")
 (eval-when-compile
   (require 'cl))
@@ -168,7 +216,6 @@ If VARIABLE exists, overwrite the existing value.  Returns the updated
 project.")
 	 (metaproject-project-data-put project ',sym variable value)))))
 
-
 (metaproject-project-data-accessors config)
 (metaproject-project-data-accessors state)
 
@@ -198,7 +245,7 @@ project.")
 	    (metaproject-current-projects-add-project new-project)
 	    (kill-buffer)
 	    new-project)))))
-    
+
 ;;;; Metaproject Files module definition.
 ;; The Files module specifies the files in a project.
 ;; Its configuration is a plist with the following properties:
@@ -225,7 +272,7 @@ that are currently open."
   (let ((files-config (metaproject-project-config-get project 'files)))
     (setq files-config (plist-put files-config 'files files))
     (metaproject-project-config-put project 'files files-config)))
-     
+
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
   (let* ((project-base-dir (metaproject-project-state-get project 'project-base-dir))
@@ -238,7 +285,7 @@ that are currently open."
      (not (string= "../" (substring expanded-file-name 0 3)))
      (file-exists-p expanded-file-name)
      (file-regular-p expanded-file-name))))
-  
+
 (defun metaproject-files-add-file-to-project (project file)
   "Add to the project PROJECT the file FILE.
 Only add FILE if it isn't already a member of PROJECT.  FILE is
@@ -255,6 +302,6 @@ project's directory), an error is signaled."
 	   project
 	   (append project-files (list relative-file-name)))))
     (error metaproject-error-not-valid-file file)))
-  
+
 (provide 'metaproject)
 ;;; metaproject.el ends here
