@@ -11,6 +11,7 @@ ln -s $NEW metaproject
 
 cd $DIR
 export NO_LOAD_MP=1
+rm *.elc 2>&1 > /dev/null
 /usr/bin/emacs --debug-init test.el --eval "(eval-buffer)"
 
 cd ~/lib/emacs

@@ -133,14 +133,14 @@ Returns nil if a project from that path is not currently open."
   "Remove the project specified by PROJECT from the current projects group.
 Does not close the project or any of its buffers, this may be done
 elsewhere."
-  (let ((project-base-dir (metaproject-project-state-get project 'project-base-dir)))
+  (let ((project-base-dir (metaproject-project-get-state project 'project-base-dir)))
     (remhash project-base-dir metaproject-current-projects)))
 
 (defun metaproject-current-projects-add-project (project)
   "Add the project specified by PROJECT to the current projects group.
 It is assumed that the project itself is opened and any related operations
 are done elsewhere."
-  (let ((project-base-dir (metaproject-project-state-get project 'project-base-dir)))
+  (let ((project-base-dir (metaproject-project-get-state project 'project-base-dir)))
     (assert (not (null project-base-dir)))
     (puthash project-base-dir project metaproject-current-projects)))
 
@@ -160,7 +160,7 @@ purposes and is not explicitly referenced elsewhere at the moment.")
   "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
 
-(defun metaproject-project-create (project-base-dir &optional name)
+(defun metaproject-project-create-project (project-base-dir &optional name)
   "Create a project with the root PROJECT-BASE-DIR and optionally, named NAME.
 If PROJECT-BASE-DIR is not an absolute path name, it is assumed to be relative
 to the current buffer's `default-directory', which could be
@@ -175,13 +175,13 @@ directory, an error is signaled."
 			 (file-name-directory project-base-dir)
 		       name))
 	       (new-project (copy-alist metaproject-project-empty-template)))
-	  (setq new-project (metaproject-project-config-put new-project 'name name)
-		new-project (metaproject-project-state-put new-project 'project-base-dir project-base-dir))
+	  (setq new-project (metaproject-project-put-config new-project 'name name)
+		new-project (metaproject-project-put-state new-project 'project-base-dir project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found project-base-dir))))
 
 ;;;; Project state and configuration handling
-(defun metaproject-project-data-get (project sym variable)
+(defun metaproject-project-get-data (project sym variable)
   "Return from PROJECT in SYM's list the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
 and the variable not existing.  Use `metaproject-project-data-member' if
@@ -189,12 +189,12 @@ concerned about null values."
   (let ((data (cdr (assoc sym project))))
     (plist-get data variable)))
 
-(defun metaproject-project-data-member (project sym variable)
+(defun metaproject-project-member-data (project sym variable)
   "Return from PROJECT in SYM's list the cons of VARIABLE and its value or nil if not found."
   (let ((data (cdr (assoc sym project))))
     (plist-member data variable)))
 
-(defun metaproject-project-data-put (project sym variable value)
+(defun metaproject-project-put-data (project sym variable value)
   "On PROJECT in SYM's list, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project."
@@ -206,35 +206,35 @@ project."
 (defmacro define-metaproject-project-data-accessors (sym)
   "Generate the accessor functions for SYM in a project.
 This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
-and `metaproject-project-*-put'."
+and `metaproject-project-SYM-put'."
   (let* ((name (symbol-name sym))
 	 (prefix "metaproject-project-")
-	 (get-fn-name (intern (concat prefix name "-get")))
-	 (member-fn-name (intern (concat prefix name "-member")))
-	 (put-fn-name (intern (concat prefix name "-put"))))
+	 (get-fn-name (intern (concat prefix "get-" name)))
+	 (member-fn-name (intern (concat prefix "member-" name)))
+	 (put-fn-name (intern (concat prefix "put-" name))))
     `(progn
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
 and the variable not existing.  Use `metaproject-project-" name "-member' if
 concerned about null values.")
-	 (metaproject-project-data-get project ',sym variable))
+	 (metaproject-project-get-data project ',sym variable))
        (defun ,member-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the cons of VARIABLE and its value or nil if not found.")
-	   (metaproject-project-data-get project ',sym variable))
+	   (metaproject-project-get-data project ',sym variable))
        (defun ,put-fn-name (project variable value)
 	 ,(concat "On PROJECT, set VARIABLE to VALUE in the " name ".
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project.")
-	 (metaproject-project-data-put project ',sym variable value)))))
+	 (metaproject-project-put-data project ',sym variable value)))))
 
 (define-metaproject-project-data-accessors config)
 (define-metaproject-project-data-accessors state)
 
-(defun metaproject-project-config-store (project)
+(defun metaproject-project-store-config (project)
   "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
-	 (project-base-dir (metaproject-project-state-get project 'project-base-dir))
+	 (project-base-dir (metaproject-project-get-state project 'project-base-dir))
 	 (config-file-name (expand-file-name metaproject-config-file-name project-base-dir))
 	 (config-buffer (find-file config-file-name)))
     (save-excursion
@@ -244,7 +244,7 @@ project.")
       (save-buffer)
       (kill-buffer (current-buffer)))))
 
-(defun metaproject-project-config-load (project-file-name)
+(defun metaproject-project-load-config (project-file-name)
   "Load the configuration for a project from PROJECT-FILE-NAME."
   (let ((project-base-dir (or (file-name-directory project-file-name) default-directory))
 	(new-project (copy-alist metaproject-project-empty-template)))
@@ -253,47 +253,138 @@ project.")
 	  (find-file project-file-name)
 	  (let ((project-config (read (current-buffer))))
 	    (setcdr (assoc 'config new-project) project-config)
-	    (metaproject-project-state-put new-project 'project-base-dir project-base-dir)
+	    (metaproject-project-put-state new-project 'project-base-dir project-base-dir)
 	    (metaproject-current-projects-add-project new-project)
 	    (kill-buffer (current-buffer))
 	    new-project)))))
 
 ;; Module helpers
-(defconst metaproject-module-config-parts (list (make-symbol "autoload"))
-  "The symbols that are common in all of the module definitions.
+(defconst metaproject-module-default-config-parts (list (make-symbol "autoload"))
+  "The symbols that are common in config to all module definitions.
 'autoload' indicates whether this module's open function is to be run
 when the project is opened.
 
 Note this constant is primarily for documentation and symbol creation
 purposes and is not explicitly referenced elsewhere at the moment.")
 
-(defconst metaproject-module-config-empty-template '((autoload . nil))
+(defconst metaproject-module-default-config-empty-template '((autoload . nil))
   "Template for empty in-memory module configuration with default values.
 'autoload' defaults to nil, the user should explicitly turn on loading.")
+
+(defun metaproject-module-get-default-config (module)
+  "Return the default config for MODULE."
+  ;; TODO: Have this return the registered default config for MODULE.
+  metaproject-module-default-config-empty-template)
+
+(defun metaproject-module-get-config (project module &optional configuringp)
+  "Return from PROJECT the config for MODULE.
+Returns nil if MODULE is not configured for the PROJECT (as is the
+behavior of `metaproject-project-get-config', but if the optional
+CONFIGURINGP is set, return the default config for MODULE."
+  (let ((module-config (metaproject-project-get-config project module)))
+    (if (and (null module-config)
+	       (not (null configuringp)))
+	(metaproject-module-get-default-config module)
+      module-config)))
+
+(defun metaproject-module-put-config (project module config)
+  "Save to PROJECT MODULE 's CONFIG."
+  (metaproject-project-put-config project module config))
+
+(defmacro define-metaproject-module-config-accessors (module)
+  "Generate the accessor functions for MODULE 's config in a project.
+This includes `metaproject-MODULE-get-config' and `metaproject-MODULE-put-config'."
+  (let* ((name (symbol-name module))
+	 (prefix "metaproject-")
+	 (get-fn-name (intern (concat prefix "get-" name "-config")))
+	 (put-fn-name (intern (concat prefix "put-" name "-config"))))
+    `(progn
+       (defun ,get-fn-name (project &optional configuringp)
+	 ,(concat "Return from PROJECT the config for " name ".
+Returns nil if " name " is not configured for the PROJECT (as is the
+behavior of `metaproject-project-get-config', but if the optional
+CONFIGURINGP is set, return the default config for " name ".")
+	 (metaproject-module-get-config project ',module configuringp))
+       (defun ,put-fn-name (project config)
+	 ,(concat "Save to PROJECT the module " name "'s CONFIG.")
+	 (metaproject-module-put-config project ',module config)))))
+
+(defconst metaproject-module-default-state-parts (list nil)
+  "The symbols that are common in state to all module definitions.
+Currently, there is no common state shared among all definitions.
+
+Note this constant is primarily for documentation and symbol creation
+purposes and is not explicitly referenced elsewhere at the moment.")
+
+(defconst metaproject-module-default-state-empty-template (list nil)
+  "Template for empty in-memory module state with default values.
+Currently, there is no common state shared among all definitions.")
+
+(defun metaproject-module-get-default-state (module)
+  "Return the default state for MODULE."
+  ;; TODO: Have this return the registered default state for MODULE.
+  metaproject-module-default-state-empty-template)
+
+(defun metaproject-module-get-state (project module)
+  "Return from PROJECT the state for MODULE.
+If there is no state currently stored, this returns the default state
+for the module if the module applies for the current project (i.e.,
+configuration exists), or nil if the module does not apply.  The
+caller must explicitly save the state back to the project if the
+defaults should be stored."
+  (let ((module-config (metaproject-project-member-config project module)))
+    (if (not (null module-config))
+	(let ((module-state (metaproject-project-get-state project module)))
+	  (if (null module-state)
+		(metaproject-module-get-default-state module)
+	    module-state))
+      nil)))
+
+(defun metaproject-module-put-state (project module state)
+  "Save to PROJECT MODULE 's runtime STATE."
+  (metaproject-project-put-state project module state))
+
+(defmacro define-metaproject-module-state-accessors (module)
+  "Generate the accessor functions for MODULE 's state in a project.
+This includes `metaproject-MODULE-get-state' and `metaproject-MODULE-put-state'."
+  (let* ((name (symbol-name module))
+	 (prefix "metaproject-")
+	 (get-fn-name (intern (concat prefix name "-get-state")))
+	 (put-fn-name (intern (concat prefix name "-put-state"))))
+    `(progn
+       (defun ,get-fn-name (project)
+	 ,(concat "Return from the PROJECT the state for " name "
+See `metaproject-module-get-state' for the semantics on what is returned.")
+	 (metaproject-module-get-state project ',module))
+       (defun ,put-fn-name (project state)
+	 ,(concat "Save to PROJECT the module " name "'s runtime STATE.")
+	 (metaproject-module-put-state project ',module state)))))
 
 ;;;; Metaproject Files module definition.
 ;; It is one of the default modules that is always loaded and core Metaproject
 ;; depends upon, but for simplicity, in many cases, such as project load and store
 ;; time, it is treated like any other module.  It just happens to live in the same file.
+(define-metaproject-module-config-accessors files)
+(define-metaproject-module-state-accessors files)
 
 ;; TODO-MAYBE: Rename metaproject-project-get-open-files to something more apropos when implementing.
-(defun metaproject-files-get-from-project (project)
+(defun metaproject-files-get-files-from-project (project)
   "Return the list of files belonging to PROJECT.
 These files are not necessarily currently open.  Use
 `metaproject-project-get-open-files' to get a list of the project files
 that are currently open."
-  (let ((files-config (metaproject-project-config-get project 'files)))
+  (let ((files-config (metaproject-get-files-config project)))
 	 (plist-get files-config 'files)))
 
-(defun metaproject-files-put-to-project (project files)
+(defun metaproject-files-put-files-to-project (project files)
   "Set on PROJECT the list of FILES."
-  (let ((files-config (metaproject-project-config-get project 'files)))
+  (let ((files-config (metaproject-get-files-config project)))
     (setq files-config (plist-put files-config 'files files))
-    (metaproject-project-config-put project 'files files-config)))
+    (metaproject-put-files-config project files-config)))
 
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
-  (let* ((project-base-dir (metaproject-project-state-get project 'project-base-dir))
+  (let* ((project-base-dir (metaproject-project-get-state project 'project-base-dir))
 	 (default-directory project-base-dir)
 	 (expanded-file-name (file-relative-name (expand-file-name file project-base-dir) project-base-dir)))
     (and
@@ -311,12 +402,12 @@ assumed to be an absolute pathname or relative to PROJECT's project-base-dir.
 If FILE is not a valid file (i.e., not a valid file or under the
 project's directory), an error is signaled."
   (if (metaproject-files-valid-file-in-project-p file project)
-      (let* ((project-base-dir (metaproject-project-state-get project 'project-base-dir))
+      (let* ((project-base-dir (metaproject-project-get-state project 'project-base-dir))
 	     (expanded-file-name (expand-file-name file project-base-dir))
 	     (relative-file-name (file-relative-name expanded-file-name project-base-dir))
-	     (project-files (metaproject-files-get-from-project project)))
+	     (project-files (metaproject-files-get-files-from-project project)))
 	(when (not (member relative-file-name project-files))
-	  (metaproject-files-put-to-project
+	  (metaproject-files-put-files-to-project
 	   project
 	   (append project-files (list relative-file-name)))))
     (error metaproject-error-not-valid-file file)))
