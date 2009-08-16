@@ -52,13 +52,12 @@
 ;; for the various functions and variables for how modules should be
 ;; implemented and what they can do.
 
-
 ;; A bit of Metaproject philosophy is borrowed from the Zen of Python:
 ;; 'Explicit is better than implicit.'  Or perhaps the Principle of
-;; Least Astonishment applys a bit better in this  case.  Anyway,
+;; Least Astonishment applies a bit better in this  case.  Anyway,
 ;; what I mean is that Metaproject (or its modules) should not do
 ;; anything the user has not explicitly asked for.  This means, for
-;; example that even if the user has configuration for a module
+;; example, that even if the user has configuration for a module
 ;; in their project file, it should not load the corresponding
 ;; buffers until explcitly told to.  The 'files' module, for example,
 ;; is a way of specifying what files are in a project.  It can,
@@ -75,7 +74,8 @@
 ;; that would be nice.  I wasn't looking for a nice view of all of my
 ;; files -- though it would be helpful.  I hope that this way of doing
 ;; projects is a little more flexible and will eventually allow many
-;; of these other things.
+;; of these other things.  Plus, it will allow, where appropriate,
+;; integration with these other project modes fairly easy.
 
 ;; I welcome comments, critiques, patches, whatever.  This is my first
 ;; major Emacs Lisp code beyond what I have in my ~/.emacs and so I'm
@@ -98,12 +98,12 @@
 
 ;;;; Constants
 (defconst metaproject-config-file-name ".metaproject"
-  "This is the default filename used for the metaproject configuration files for each project.")
+  "The default filename used for the metaproject configuration files.")
 
 (add-to-list 'auto-mode-alist '("\\.metaproject$" . emacs-lisp-mode))
 
 (defconst metaproject-version "0.02-SNAPSHOT"
-  "This is the current version of metaproject.")
+  "The current version of Metaproject.")
 
 ;; Error messages
 (defconst metaproject-error-directory-not-found
@@ -118,13 +118,13 @@
   :group 'tools)
 
 (defcustom metaproject-project-dirs nil
-  "This is a list of the directories that contain project directories."
+  "A list of the directories that contain project directories."
   :type '(repeat directory)
   :group 'metaproject)
 
 ;;;; Currently Open Projects
 (defvar metaproject-current-projects (make-hash-table :test 'equal)
-  "This is the group of all of the projects that are currently open.
+  "The group of all of the projects that are currently open.
 It is a hash table where the keys are the top level directories of
 each project and the values are property lists containing the configuration
 information and state of each project.")
@@ -136,8 +136,8 @@ Returns nil if a project from that path is not currently open."
 
 (defun metaproject-current-projects-remove-project (project)
   "Remove the project specified by PROJECT from the current projects group.
-This does not close the project or any of its buffers, this may be
-done elsewhere."
+Does not close the project or any of its buffers, this may be done
+elsewhere."
   (let ((project-base-dir (metaproject-project-state-get project 'project-base-dir)))
     (remhash project-base-dir metaproject-current-projects)))
 
@@ -151,7 +151,7 @@ are done elsewhere."
 
 ;;;; General Project support
 (defconst metaproject-project-parts (list (make-symbol "state") (make-symbol "config"))
-  "These are the symbols that are used in the in-memory project structures.
+  "The symbols that are used in the in-memory project structures.
 'state' will contain the current state of the project: open buffers, etc.
 'config' will contain the configuration to be persisted across project loads.
 
@@ -265,7 +265,7 @@ project.")
 
 ;; Module helpers
 (defconst metaproject-module-config-parts (list (make-symbol "autoload"))
-  "These are the symbols that are common in all of the module definitions.
+  "The symbols that are common in all of the module definitions.
 'autoload' indicates whether this module's open function is to be run
 when the project is opened.
 
@@ -277,13 +277,6 @@ purposes and is not explicitly referenced elsewhere at the moment.")
 'autoload' defaults to nil, the user should explicitly turn on loading.")
 
 ;;;; Metaproject Files module definition.
-;; The Files module specifies the files in a project.
-;; Its configuration is a plist with the following properties:
-;; - files - list of file paths, all relative to the project project-base-dir
-;; - find-all-at-open - find all files at project open if t
-;; - TODO: Define other keys as needed, possible are include-regexp and exclude-regexp
-;;
-
 ;; It is one of the default modules that is always loaded and core Metaproject
 ;; depends upon, but for simplicity, in many cases, such as project load and store
 ;; time, it is treated like any other module.  It just happens to live in the same file.
