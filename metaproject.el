@@ -38,7 +38,7 @@
 ;; But I also realized that the set of "things" I do are not
 ;; necessarily the same set of "things" others do.  For example, I use
 ;; the excellent mode magit for interacting with my git
-;; repositories. It doesn't ship with Emacs. Others may not even use
+;; repositories.  It doesn't ship with Emacs.  Others may not even use
 ;; git.  So I wanted some of the functionality to be optional, but
 ;; still be integrated seamlessly when used.
 
@@ -157,7 +157,6 @@ are done elsewhere."
 
 Note this constant is primarily for documentation and symbol creation
 purposes and is not explicitly referenced elsewhere at the moment.")
-
 
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
   "Template for empty in-memory project structures.")

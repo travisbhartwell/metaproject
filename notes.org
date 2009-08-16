@@ -8,6 +8,153 @@
 (defmacro mp-ib-fp (name)
   `(funcall check-it ,(eval name)))
 
+** [2009-08-15 Sat 23:51]
+   Brief notes to get started with tomorrow:
+   - first write module initialization and accessor routines specific
+     to the files module.  Test that they work and desired: clean,
+     provide the correct output, and is not a leaky  API.  Then,
+     generalize as necessary using higher-order functions and macros.
+   - Each of the module open functions should check if the 'autoload'
+     parameter is set to t when called.  This probably makes sense to
+     do as a higher-order function wrapper or a macro.  See what makes
+     sense after writing a couple of them.
+   - In order to have any other minimal useful functionality, the
+     files module must be minimally feature complete, so that should
+     be my first priority.  I will use the development of that module
+     as the driver for the development of the generic module support
+     functions.
+   - The following things are supported for registration of modules:
+     - open function -- what opens the buffer or buffer(s) for that
+       module?  Question - many modules only open a single buffer, and
+       thus will only have one applicable open function.  But files
+       has both a 'open-all' and 'open-single-not-yet-open'
+       functions.  I intend for open-all to be the thing registered
+       here, but perhaps there is another thing that should be
+       registered.
+
+     - buffer clean up function -- if closing a buffer opened by a
+       module requires some clean up, a hook function should be
+       registered here.
+
+     - project clean up function -- if some clean up on project close
+       should be done, this function should be registered here.
+
+     - keybindings -- any keybindings should be registered that will
+       be added to a metaproject minor mode keymap for a given
+       project.  This may require making project-specific keymaps or
+       having a wrapper around all interactive functions that does a
+       check to see if the buffer belongs to a project that is
+       configured to use such functionality.
+
+       - How do I handle conflicting modules / functionality from modules?
+	 For example, I could have buffer switching and file open
+	 functions that uses standard built-in stuff for completion (or no
+	 completion at all, just prompting), but then have ido-using
+	 versions that would replace them.  I guess these are usually
+	 key-bindings issues, and core code would be registered first, so
+	 if a keybinding is overwritten, that's an acceptable case.  My
+	 keybinding registration needs to handle the conflicts.
+
+   - Each of the functions will be registered to a hash table that
+     keys off of the module name.  When a buffer is set up by the
+     module, an appropriate hook, if any, will be added buffer-local.
+
+   - So likely order of features to implement:
+     - files specific functions, tested by calling manually
+     - abstract to general module functions, make sure files module
+       isn't broken
+     - module registration of hooks and keybindings
+     - implementation of Metaproject minor mode
+     - high-level project load function that calls config-load and
+       then acts upon the module configuration
+       - buffer set up and tear down functions
+       - interactive version that prompts (without completion) for
+         .metaproject file to load and keybinding
+     - project close function and keybinding
+     - ido module and keybindings:
+       - project open using project-dirs
+       - buffer switch
+
+   Regarding my upcoming 0.02 release of Metaproject:
+   - In order to be considered for release, I think I should have the
+     following criteria met:
+     - the code should pass checkdoc, elint (with reason), and
+       byte-compile with no warnings and errors
+     - the following modules should be minimally feature complete:
+       - files
+	 - loading all, loading a non-opened file belonging to
+	   project, specifying files explicitly in the configuration,
+	   interactive function to add a file (buffer) to the project,
+	   interactive function to remove current buffer from the project
+       - magit
+	 - magit buffer for project
+       - project-buffer-mode
+	 - create and switch to project buffer mode
+	 - as integrated with the latest pbm as possible (opening
+           files from the buffer has the appropriate data set up, etc)
+       - ido
+	 - appropriate wrappers for opening files, switching buffers
+     - Metaproject minor mode properly implemented
+     - Appropriate key bindings should be set for all major add-in
+       functions.
+     - Enough functionality that users can create and configure
+       projects by at least calling a series of functions in their
+       *scratch* buffers, with no hand editing of .metaproject files
+       required.
+     - A quick intro for using it should be in the documentation.
+
+   Releasing:
+   - tag on github and update the github project page
+   - make page on emacswiki and update
+   - make page on freshmeat and update
+   - announce to gnu.emacs.sources
+   - tweet!
+   - post announcement to my blog
+   - create new branch in git for the <next version>-SNAPSHOT
+
+   Future non-code things to do:
+   - short screencast showcasing functionality
+   - contact Emacs hacker friends asking for feedback, realizing they
+     are all very busy
+
+   I should spend a few minutes each day brainstorming about upcoming
+   desirable features, potential issues to research, and future plans.
+
+   A few quick ideas that should be elaborated on later:
+   - a project management menu that is similar (perhaps) to the org
+     agenda menu showing all available functions for a project.  this
+     could be considered the "main project window" and is always open
+     for a project while it is open.
+     - Actually, I need to think about this as the registration
+       functions are written and configuration is loaded.  What is
+       lacking, if anything, to generate this menu for project.
+   - a combined switch or open buffer function for files
+   - should I make a "core" or "metaproject" default module and
+     have associated configuration and state stored there or just
+     continue to have some top-level state and configuration mixed in
+     with module state and configuration?  Should probably be decided
+     before the 0.2 release before I get users.
+   - if interactive functions that are bound to a project are called
+     outside of a project (via M-x) I should probably prompt for an
+     open project to call the function on.
+   - dired functions for adding files to a project
+   - include/exclude/wildcard functionality for specifying files that
+     are in a project
+   - clean up project-utils similar to what is in magit so that it is
+     a lot faster
+   - a fancy project creation and configuration wizard [definitely
+     long-term plans]
+
+   That's enough brainstorming for one night.  Don't want to get
+   myself overwhelmed.  It looks like for a solid 0.2 release, it will
+   take at least another week or so of work.  I *might* be able to
+   start dog-fooding tomorrow, though likely in a couple of days.
+
+   One last one:
+   - what can I automate?
+   - and what about automated testing, perhaps like the Baseline
+     framework?
+
 * Notes and plans:
 ** Open project
 ***  open all files in a project, including project supporting buffers
@@ -82,7 +229,7 @@
 ** create and elscreen session for the project
 
 ** questions:
-*** I seem to be limiting the idea of a project of those files under a common sub-directory.  
+*** I seem to be limiting the idea of a project of those files under a common sub-directory.
     This might be fine for now, but that doesn't seem to be a reasonable
     limitation.  I should examine where this assumption is made and see
     how to remove it.  i.e., metaproject-get-top-dir
@@ -90,7 +237,7 @@
 *** It is probably a reasonable assumption that a given file can only
     belong to one open project at a time.  If I want to allow for this,
     how to work around it?
-  
+
 * Todos
 ** action registry
 ***  each key in the .metaproject plist is associated with a given
@@ -120,4 +267,4 @@
     CLOSED: [2009-04-29 Wed 16:48]
 *** TODO Add descriptions to the top of the .el files
 *** TODO Add usage instructions
-*** TODO run checkdoc and fix any errors it reports  
+*** TODO run checkdoc and fix any errors it reports
