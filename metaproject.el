@@ -117,11 +117,6 @@
   "Project support and utilities."
   :group 'tools)
 
-(defcustom metaproject-project-dirs nil
-  "A list of the directories that contain project directories."
-  :type '(repeat directory)
-  :group 'metaproject)
-
 ;;;; Currently Open Projects
 (defvar metaproject-current-projects (make-hash-table :test 'equal)
   "The group of all of the projects that are currently open.
