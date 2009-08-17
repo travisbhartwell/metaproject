@@ -77,11 +77,6 @@
 ;; of these other things.  Plus, it will allow, where appropriate,
 ;; integration with these other project modes fairly easy.
 ;;
-;; I welcome comments, critiques, patches, whatever.  This is my first
-;; major Emacs Lisp code beyond what I have in my ~/.emacs and so I'm
-;; learning how to do things.  Any help and improvement would be
-;; welcome!
-;;
 ;; Usage:
 ;; TODO: Explain usage.
 
@@ -277,7 +272,7 @@ purposes and is not explicitly referenced elsewhere at the moment.")
   metaproject-module-default-config-empty-template)
 
 (defun metaproject-module-has-config-p (project module)
-  "Returns t if PROJECT is configured for MODULE."
+  "Return t if PROJECT is configured for MODULE."
     (null (metaproject-project-get-config project module)))
 
 (defun metaproject-module-get-config (project module)
