@@ -201,7 +201,7 @@ project."
 	 (data (cdr data-assoc))
 	 (variable-assoc (assoc variable data)))
     (if (null variable-assoc)
-	(setcdr data-assoc (append data (list (cons variable value))))
+	(setcdr data-assoc (acons variable value data))
       (setcdr variable-assoc value))
     project))
 
@@ -237,27 +237,22 @@ project.")
   "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
 	 (project-base-dir (metaproject-project-get-state project 'project-base-dir))
-	 (config-file-name (expand-file-name metaproject-config-file-name project-base-dir))
-	 (config-buffer (find-file config-file-name)))
-    (save-excursion
-      (set-buffer config-buffer)
-      (erase-buffer)
+	 (config-file-name (expand-file-name metaproject-config-file-name project-base-dir)))
+    (with-temp-buffer
       (print config (current-buffer))
-      (save-buffer)
-      (kill-buffer (current-buffer)))))
+      (write-file config-file-name))))
 
 (defun metaproject-project-load-config (project-file-name)
   "Load the configuration for a project from PROJECT-FILE-NAME."
   (let ((project-base-dir (or (file-name-directory project-file-name) default-directory))
 	(new-project (copy-alist metaproject-project-empty-template)))
     (if (metaproject-project-p project-base-dir)
-	(save-excursion
-	  (find-file project-file-name)
+	(with-temp-buffer
+	  (insert-file-contents project-file-name)
 	  (let ((project-config (read (current-buffer))))
 	    (setcdr (assoc 'config new-project) project-config)
 	    (metaproject-project-put-state new-project 'project-base-dir project-base-dir)
 	    (metaproject-current-projects-add-project new-project)
-	    (kill-buffer (current-buffer))
 	    new-project)))))
 
 ;; Module helpers
@@ -366,7 +361,7 @@ This includes `metaproject-MODULE-get-state' and `metaproject-MODULE-put-state'.
 See `metaproject-module-get-state' for the semantics on what is returned.")
 	 (metaproject-module-get-state project ',module))
        (defun ,put-fn-name (project state)
-	 ,(concat "Save to PROJECT the module " name "'s runtime STATE.")
+	 ,(concat "Save to the PROJECT the module " name "'s runtime STATE.")
 	 (metaproject-module-put-state project ',module state)))))
 
 ;;;; Metaproject Files module definition.
@@ -383,7 +378,7 @@ These files are not necessarily currently open.  Use
 `metaproject-project-get-open-files' to get a list of the project files
 that are currently open."
   (let ((files-config (metaproject-files-get-config project)))
-	 (plist-get files-config 'files)))
+    (plist-get files-config 'files)))
 
 (defun metaproject-files-put-files-to-project (project files)
   "Set on PROJECT the list of FILES."
