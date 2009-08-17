@@ -259,7 +259,7 @@ project.")
 (defconst metaproject-module-default-config-parts (list (make-symbol "autoload"))
   "The symbols that are common in config to all module definitions.
 'autoload' indicates whether this module's open function is to be run
-when the project is opened.
+when the project is opened.  Possible values are nil, t, or prompt.
 
 Note this constant is primarily for documentation and symbol creation
 purposes and is not explicitly referenced elsewhere at the moment.")
@@ -313,6 +313,21 @@ check `metaproject-" name "-has-config-p' first.")
 	 ,(concat "Save to PROJECT the module " name "'s CONFIG.")
 	 (metaproject-module-put-config project ',module config)))))
 
+(defun metaproject-module-config-get-value (project module variable)
+  (let ((module-config (metaproject-module-get-config project module)))
+    (cdr (assoc variable module-config))))
+
+(defun metaproject-module-config-put-value (project module variable value)
+  (let* ((module-config (metaproject-module-get-config project module))
+	 (variable-assoc (assoc variable module-config)))
+    (if (null variable-assoc)
+	(let ((new-module-config (acons variable value module-config)))
+	  (metaproject-module-put-config
+	   project
+	   module
+	   new-module-config))
+      (setcdr variable-assoc value))))
+
 (defconst metaproject-module-default-state-parts (list nil)
   "The symbols that are common in state to all module definitions.
 Currently, there is no common state shared among all definitions.
@@ -349,8 +364,9 @@ defaults should be stored."
   (metaproject-project-put-state project module state))
 
 (defmacro define-metaproject-module-state-accessors (module)
-  "Generate the accessor functions for MODULE 's state in a project.
-This includes `metaproject-MODULE-get-state' and `metaproject-MODULE-put-state'."
+  "Generate accessor functions for MODULE 's state and state contents.
+This includes `metaproject-MODULE-get-state', `metaproject-MODULE-put-state',
+`metaproject-MODULE-state-get-value', and `metaproject-MODULE-state-get-value'."
   (let* ((name (symbol-name module))
 	 (prefix "metaproject-")
 	 (get-fn-name (intern (concat prefix name "-get-state")))
@@ -363,6 +379,20 @@ See `metaproject-module-get-state' for the semantics on what is returned.")
        (defun ,put-fn-name (project state)
 	 ,(concat "Save to the PROJECT the module " name "'s runtime STATE.")
 	 (metaproject-module-put-state project ',module state)))))
+
+(defun metaproject-module-state-get-value (project module variable)
+  (let ((module-state (metaproject-module-get-state project module)))
+    (cdr (assoc variable module-state))))
+
+(defun metaproject-module-state-put-value (project module variable value)
+  (let* ((module-state (metaproject-module-get-state project module))
+	 (variable-assoc (assoc variable module-state)))
+    (if (null variable-assoc)
+	(metaproject-module-put-state
+	 project
+	 module
+	 (acons variable value module-state))
+      (setcdr variable-assoc value))))
 
 ;;;; Metaproject Files module definition.
 ;; It is one of the default modules that is always loaded and core Metaproject
@@ -377,14 +407,11 @@ See `metaproject-module-get-state' for the semantics on what is returned.")
 These files are not necessarily currently open.  Use
 `metaproject-project-get-open-files' to get a list of the project files
 that are currently open."
-  (let ((files-config (metaproject-files-get-config project)))
-    (plist-get files-config 'files)))
+  (metaproject-module-config-get-value project 'files 'files))
 
 (defun metaproject-files-put-files-to-project (project files)
   "Set on PROJECT the list of FILES."
-  (let ((files-config (metaproject-files-get-config project)))
-    (setq files-config (plist-put files-config 'files files))
-    (metaproject-files-put-config project files-config)))
+  (metaproject-module-config-put-value project 'files 'files files))
 
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
@@ -412,10 +439,11 @@ project's directory), an error is signaled."
 	     (relative-file-name (file-relative-name expanded-file-name project-base-dir))
 	     (project-files (metaproject-files-get-files-from-project project)))
 	(when (not (member relative-file-name project-files))
-	  (metaproject-files-put-files-to-project
-	   project
-	   (append project-files (list relative-file-name)))))
-    (error metaproject-error-not-valid-file file)))
+	  (let ((new-project-files (add-to-list 'project-files relative-file-name)))
+	    (metaproject-files-put-files-to-project
+	     project
+	     new-project-files))))
+	(error metaproject-error-not-valid-file file)))
 
 (provide 'metaproject)
 ;;; metaproject.el ends here
