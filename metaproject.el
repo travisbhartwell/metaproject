@@ -26,7 +26,7 @@
 ;; the the idea of a project.  A project is simply a group of related
 ;; files and buffers, with all of the files located under a common
 ;; directory.
-
+;;
 ;; I originally wrote Metaproject as I found it a pain to always open
 ;; the same small group of source files I was working on and I
 ;; realized that most of what I do is in context of a given "project"
@@ -34,14 +34,14 @@
 ;; in Emacs -- including buffer switching, using a version control
 ;; system, opening and closing files, etc are almost always around a
 ;; related set of things.
-
+;;
 ;; But I also realized that the set of "things" I do are not
 ;; necessarily the same set of "things" others do.  For example, I use
 ;; the excellent mode magit for interacting with my git
 ;; repositories.  It doesn't ship with Emacs.  Others may not even use
 ;; git.  So I wanted some of the functionality to be optional, but
 ;; still be integrated seamlessly when used.
-
+;;
 ;; This lead to the current architecture.  All but the most core
 ;; functions that manipulate a project's data and the global project
 ;; list are found in what I term 'modules'.  These modules will
@@ -51,7 +51,7 @@
 ;; powerful enough to meet other's needs.  Look in the documentation
 ;; for the various functions and variables for how modules should be
 ;; implemented and what they can do.
-
+;;
 ;; A bit of Metaproject philosophy is borrowed from the Zen of Python:
 ;; 'Explicit is better than implicit.'  Or perhaps the Principle of
 ;; Least Astonishment applies a bit better in this  case.  Anyway,
@@ -64,7 +64,7 @@
 ;; in its open action, automatically open all of the files specified
 ;; and do this when the project is opened.  But, in the default
 ;; configuration, this does not happen.
-
+;;
 ;; Some may ask why I wrote this instead of using any of the half
 ;; dozen or so other "project" modes for Emacs that are listed on the
 ;; EmacsWiki.  None of the ones I looked at did quite what I wanted.
@@ -76,12 +76,12 @@
 ;; projects is a little more flexible and will eventually allow many
 ;; of these other things.  Plus, it will allow, where appropriate,
 ;; integration with these other project modes fairly easy.
-
+;;
 ;; I welcome comments, critiques, patches, whatever.  This is my first
 ;; major Emacs Lisp code beyond what I have in my ~/.emacs and so I'm
 ;; learning how to do things.  Any help and improvement would be
 ;; welcome!
-
+;;
 ;; Usage:
 ;; TODO: Explain usage.
 
@@ -276,14 +276,17 @@ purposes and is not explicitly referenced elsewhere at the moment.")
   ;; TODO: Have this return the registered default config for MODULE.
   metaproject-module-default-config-empty-template)
 
-(defun metaproject-module-get-config (project module &optional configuringp)
+(defun metaproject-module-has-config-p (project module)
+  "Returns t if PROJECT is configured for MODULE."
+    (null (metaproject-project-get-config project module)))
+
+(defun metaproject-module-get-config (project module)
   "Return from PROJECT the config for MODULE.
-Returns nil if MODULE is not configured for the PROJECT (as is the
-behavior of `metaproject-project-get-config', but if the optional
-CONFIGURINGP is set, return the default config for MODULE."
+If MODULE is not yet configured for PROJECT, return the default config
+for MODULE.  If the caller does not want the default config,
+check `metaproject-module-has-config-p' first."
   (let ((module-config (metaproject-project-get-config project module)))
-    (if (and (null module-config)
-	       (not (null configuringp)))
+    (if (null module-config)
 	(metaproject-module-get-default-config module)
       module-config)))
 
@@ -296,15 +299,19 @@ CONFIGURINGP is set, return the default config for MODULE."
 This includes `metaproject-MODULE-get-config' and `metaproject-MODULE-put-config'."
   (let* ((name (symbol-name module))
 	 (prefix "metaproject-")
+	 (has-config-p-fn-name (intern (concat prefix name "-has-config-p")))
 	 (get-fn-name (intern (concat prefix name "-get-config")))
 	 (put-fn-name (intern (concat prefix name "-put-config"))))
     `(progn
-       (defun ,get-fn-name (project &optional configuringp)
+       (defun ,has-config-p-fn-name (project)
+	 ,(concat "Return t if PROJECT is configured for " name ".")
+	 (metaproject-module-has-config-p project ',module))
+       (defun ,get-fn-name (project)
 	 ,(concat "Return from PROJECT the config for " name ".
-Returns nil if " name " is not configured for the PROJECT (as is the
-behavior of `metaproject-project-get-config', but if the optional
-CONFIGURINGP is set, return the default config for " name ".")
-	 (metaproject-module-get-config project ',module configuringp))
+If " name " is not yet configured for the PROJECT, return the default
+config for " name ".  If the caller does not want the default config,
+check `metaproject-" name "-has-config-p' first.")
+	 (metaproject-module-get-config project ',module))
        (defun ,put-fn-name (project config)
 	 ,(concat "Save to PROJECT the module " name "'s CONFIG.")
 	 (metaproject-module-put-config project ',module config)))))
