@@ -296,8 +296,8 @@ CONFIGURINGP is set, return the default config for MODULE."
 This includes `metaproject-MODULE-get-config' and `metaproject-MODULE-put-config'."
   (let* ((name (symbol-name module))
 	 (prefix "metaproject-")
-	 (get-fn-name (intern (concat prefix "get-" name "-config")))
-	 (put-fn-name (intern (concat prefix "put-" name "-config"))))
+	 (get-fn-name (intern (concat prefix name "-get-config")))
+	 (put-fn-name (intern (concat prefix name "-put-config"))))
     `(progn
        (defun ,get-fn-name (project &optional configuringp)
 	 ,(concat "Return from PROJECT the config for " name ".
@@ -373,14 +373,14 @@ See `metaproject-module-get-state' for the semantics on what is returned.")
 These files are not necessarily currently open.  Use
 `metaproject-project-get-open-files' to get a list of the project files
 that are currently open."
-  (let ((files-config (metaproject-get-files-config project)))
+  (let ((files-config (metaproject-files-get-config project)))
 	 (plist-get files-config 'files)))
 
 (defun metaproject-files-put-files-to-project (project files)
   "Set on PROJECT the list of FILES."
-  (let ((files-config (metaproject-get-files-config project)))
+  (let ((files-config (metaproject-files-get-config project)))
     (setq files-config (plist-put files-config 'files files))
-    (metaproject-put-files-config project files-config)))
+    (metaproject-files-put-config project files-config)))
 
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
