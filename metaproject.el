@@ -193,11 +193,6 @@ concerned about null values."
   (let ((data (cdr (assoc sym project))))
     (assoc variable data)))
 
-(defun metaproject-compare-cars (o1 o2)
-  (let ((c1 (car o1))
-	(c2 (car o2)))
-    (equal c1 c2)))
-
 (defun metaproject-project-put-data (project sym variable value)
   "On PROJECT in SYM's list, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value.  Returns the updated
@@ -205,12 +200,9 @@ project."
   (let* ((data-assoc (assoc sym project))
 	 (data (cdr data-assoc))
 	 (variable-assoc (assoc variable data)))
-    ;; Is there a cleaner way of doing this?
-    ;; This function feels messy
-    (when (not (null variable-assoc))
-	(delq variable-assoc data))
-    (setcdr data-assoc
-	    (add-to-list 'data (cons variable value) nil #'metaproject-compare-cars))
+    (if (null variable-assoc)
+	(setcdr data-assoc (append data (list (cons variable value))))
+      (setcdr variable-assoc value))
     project))
 
 (defmacro define-metaproject-project-data-accessors (sym)
