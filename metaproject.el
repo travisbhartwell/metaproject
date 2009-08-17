@@ -151,6 +151,10 @@ purposes and is not explicitly referenced elsewhere at the moment.")
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
   "Template for empty in-memory project structures.")
 
+(defun metaproject-project-get-empty-template ()
+  "Return a copy of the empty in-memory project structure template for use."
+  (copy-alist metaproject-project-empty-template))
+
 (defun metaproject-project-p (dir)
   "Return t if the directory DIR is the top level of a Metaproject project."
   (file-exists-p (expand-file-name metaproject-config-file-name dir)))
@@ -169,7 +173,7 @@ directory, an error is signaled."
 	(let* ((name (if (null name)
 			 (file-name-directory project-base-dir)
 		       name))
-	       (new-project (copy-alist metaproject-project-empty-template)))
+	       (new-project (metaproject-project-get-empty-template)))
 	  (setq new-project (metaproject-project-put-config new-project 'name name)
 		new-project (metaproject-project-put-state new-project 'project-base-dir project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
@@ -182,20 +186,31 @@ Note that this does not differentiate between a variable having a null value
 and the variable not existing.  Use `metaproject-project-data-member' if
 concerned about null values."
   (let ((data (cdr (assoc sym project))))
-    (plist-get data variable)))
+    (cdr (assoc variable data))))
 
 (defun metaproject-project-member-data (project sym variable)
   "Return from PROJECT in SYM's list the cons of VARIABLE and its value or nil if not found."
   (let ((data (cdr (assoc sym project))))
-    (plist-member data variable)))
+    (assoc variable data)))
+
+(defun metaproject-compare-cars (o1 o2)
+  (let ((c1 (car o1))
+	(c2 (car o2)))
+    (equal c1 c2)))
 
 (defun metaproject-project-put-data (project sym variable value)
   "On PROJECT in SYM's list, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project."
   (let* ((data-assoc (assoc sym project))
-	 (data (cdr data-assoc)))
-    (setcdr data-assoc (plist-put data variable value))
+	 (data (cdr data-assoc))
+	 (variable-assoc (assoc variable data)))
+    ;; Is there a cleaner way of doing this?
+    ;; This function feels messy
+    (when (not (null variable-assoc))
+	(delq variable-assoc data))
+    (setcdr data-assoc
+	    (add-to-list 'data (cons variable value) nil #'metaproject-compare-cars))
     project))
 
 (defmacro define-metaproject-project-data-accessors (sym)
@@ -386,7 +401,8 @@ that are currently open."
 
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
-  (let* ((project-base-dir (metaproject-project-get-state project 'project-base-dir))
+  (let* ((project-base-dir (file-name-as-directory
+			    (metaproject-project-get-state project 'project-base-dir)))
 	 (default-directory project-base-dir)
 	 (expanded-file-name (file-relative-name (expand-file-name file project-base-dir) project-base-dir)))
     (and
