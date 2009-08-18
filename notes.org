@@ -55,9 +55,18 @@
 	 if a keybinding is overwritten, that's an acceptable case.  My
 	 keybinding registration needs to handle the conflicts.
 
+     - config and state symbols defaults -- modules should register
+       the symbols used in config and state and default values for any
+       of these.
+
    - Each of the functions will be registered to a hash table that
      keys off of the module name.  When a buffer is set up by the
      module, an appropriate hook, if any, will be added buffer-local.
+
+   - The config and state defaults will be registered to hash tables
+     that key off of the module name for easy look up.  Defining the
+     config and state defaults for each module should inherit first
+     from the default values found in metaproject-module-default-*.
 
    - So likely order of features to implement:
      - files specific functions, tested by calling manually
@@ -85,7 +94,8 @@
 	 - loading all, loading a non-opened file belonging to
 	   project, specifying files explicitly in the configuration,
 	   interactive function to add a file (buffer) to the project,
-	   interactive function to remove current buffer from the project
+	   interactive function to remove current buffer from the
+           project, add file to project, remove file from project
        - magit
 	 - magit buffer for project
        - project-buffer-mode
@@ -127,7 +137,7 @@
      for a project while it is open.
      - Actually, I need to think about this as the registration
        functions are written and configuration is loaded.  What is
-       lacking, if anything, to generate this menu for project.
+       lacking, if anything, to generate this menu for project?
    - a combined switch or open buffer function for files
    - should I make a "core" or "metaproject" default module and
      have associated configuration and state stored there or just
@@ -154,6 +164,89 @@
    - what can I automate?
    - and what about automated testing, perhaps like the Baseline
      framework?
+
+** [2009-08-16 Sun 11:19]
+
+   Notes about the 'files' module:
+   - since there will eventually be more ways of specifying what files
+     to include other than all explicitly, the list of files in the
+     project should be stored in the state.  When the files key is
+     used in the config, that list should be just copied to the state.
+   - there should be 're-scan' functionality that will scan the
+     filesystem to pick up new files if more than just the files key
+     is used.
+   - since the re-scan can be an expensive operation, I'm not sure
+     that it makes sense to automatically do it before any file
+     operation that is intended for more than just the currently open
+     files.  at the very least, it should be something that the user
+     can trigger.  should look at ways to do this while emacs is semi
+     idle and how to break if up so it can be done asynchronously
+     without blocking emacs
+   - the rescan should be run automatically, however -- or at least
+     prompted to do so -- when anything that affects what files are
+     included are changed, i.e. adding or removing include/exclude
+     patterns
+   - whenever functions to add new files or remove files from the
+     files key are called, this operation should happen on both the
+     state and the config
+   - as files are opened and closed, the state of the files module
+     needs to be updated as well as the project state for buffers
+   - files specific state needed:
+     - all-files-list
+     - open-files
+   - files potential configuration items and defaults if appropriate
+     - autoload - nil
+     - all-files-list - nil
+     - include-files-regexps - nil
+     - exclude-files-regexps - nil
+
+   Other notes:
+   - when is the appropriate time to return defaults for state and
+     config values for a module?
+     - when loading from saved project, only want defaults if
+       configuration exists for the module at all
+     - want the defaults when adding configuration for the first
+       time
+     - want the defaults for state whenever configuration for the
+       module exists.  state should always be created / accessed after
+       configuration exists (at least defaults for configuration), so
+       this is a decent metric
+   - what follows the principle of least astonishment best?
+     auto-saving the configuration every time a change is made?  Or
+     saving it only when the user specifies?
+     - the Gnome people have gone to having configuration dialogs
+       auto-apply and then use undo functionality to go back.  would
+       adding undo functionality make sense in this regard?
+   - create a Makefile for common operations -- byte compiling,
+     testing, etc.
+   - test with both Emacs 23 and Emacs 22
+     - update run-test.sh to do so
+     - make sure that any necessary 23isms (new features, not API
+       changes) are optional, with API changes, call backwards
+       compatible versions
+   - function naming convention
+     - metaproject-<module name>-<verb>-<subject>-[modifier]
+
+   Random future feature ideas:
+   - support a narrow to subproject function for many operations,
+     triggered by using C-u
+     - only consider files from a subdirectory
+     - only consider files of a certain type
+       - major mode
+       - extension
+     - again, sounds like a great thing to implement in a wrapper that
+       then passes the necessary info off to the desired function
+     - useful for:
+       - switching buffers
+       - ibuffer
+       - project-buffer-mode
+       - opening files
+       - opening un-opened file
+       - closing files
+   - add support for temporarily attaching a buffer to a project
+   - a shortcut keys module for setting project or mode specific
+     shortcut keys on a project-to-project basis.  Examples:
+     - running checkdoc, elint, launching certain make targets
 
 * Notes and plans:
 ** Open project
