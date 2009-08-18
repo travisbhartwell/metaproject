@@ -174,8 +174,8 @@ directory, an error is signaled."
 			 (file-name-directory project-base-dir)
 		       name))
 	       (new-project (metaproject-project-get-empty-template)))
-	  (setq new-project (metaproject-project-put-config new-project 'name name)
-		new-project (metaproject-project-put-state new-project 'project-base-dir project-base-dir))
+	  (setq new-project (metaproject-project-set-config new-project 'name name)
+		new-project (metaproject-project-set-state new-project 'project-base-dir project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found project-base-dir))))
 
@@ -193,7 +193,7 @@ concerned about null values."
   (let ((data (cdr (assoc sym project))))
     (assoc variable data)))
 
-(defun metaproject-project-put-data (project sym variable value)
+(defun metaproject-project-set-data (project sym variable value)
   "On PROJECT in SYM's list, set VARIABLE to VALUE.
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project."
@@ -208,12 +208,12 @@ project."
 (defmacro define-metaproject-project-data-accessors (sym)
   "Generate the accessor functions for SYM in a project.
 This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
-and `metaproject-project-SYM-put'."
+and `metaproject-project-SYM-set'."
   (let* ((name (symbol-name sym))
 	 (prefix "metaproject-project-")
 	 (get-fn-name (intern (concat prefix "get-" name)))
 	 (member-fn-name (intern (concat prefix "member-" name)))
-	 (put-fn-name (intern (concat prefix "put-" name))))
+	 (set-fn-name (intern (concat prefix "set-" name))))
     `(progn
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the value of VARIABLE.
@@ -224,11 +224,11 @@ concerned about null values.")
        (defun ,member-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the cons of VARIABLE and its value or nil if not found.")
 	   (metaproject-project-get-data project ',sym variable))
-       (defun ,put-fn-name (project variable value)
+       (defun ,set-fn-name (project variable value)
 	 ,(concat "On PROJECT, set VARIABLE to VALUE in the " name ".
 If VARIABLE exists, overwrite the existing value.  Returns the updated
 project.")
-	 (metaproject-project-put-data project ',sym variable value)))))
+	 (metaproject-project-set-data project ',sym variable value)))))
 
 (define-metaproject-project-data-accessors config)
 (define-metaproject-project-data-accessors state)
@@ -251,7 +251,7 @@ project.")
 	  (insert-file-contents project-file-name)
 	  (let ((project-config (read (current-buffer))))
 	    (setcdr (assoc 'config new-project) project-config)
-	    (metaproject-project-put-state new-project 'project-base-dir project-base-dir)
+	    (metaproject-project-set-state new-project 'project-base-dir project-base-dir)
 	    (metaproject-current-projects-add-project new-project)
 	    new-project)))))
 
@@ -287,44 +287,71 @@ check `metaproject-module-has-config-p' first."
 	(metaproject-module-get-default-config module)
       module-config)))
 
-(defun metaproject-module-put-config (project module config)
+(defun metaproject-module-set-config (project module config)
   "Save to PROJECT MODULE 's CONFIG."
-  (metaproject-project-put-config project module config))
+  (metaproject-project-set-config project module config))
 
 (defun metaproject-module-config-get-value (project module variable)
   "Return from the PROJECT in the config for MODULE the value of VARIABLE."
   (let ((module-config (metaproject-module-get-config project module)))
     (cdr (assoc variable module-config))))
 
-(defun metaproject-module-config-put-value (project module variable value)
+(defun metaproject-module-config-set-value (project module variable value)
   "Set on PROJECT in the config for MODULE VARIABLE to VALUE."
   (let* ((module-config (metaproject-module-get-config project module))
 	 (variable-assoc (assoc variable module-config)))
     (if (null variable-assoc)
 	(let ((new-module-config (acons variable value module-config)))
-	  (metaproject-module-put-config
+	  (metaproject-module-set-config
 	   project
 	   module
 	   new-module-config))
       (setcdr variable-assoc value))))
 
-(defmacro define-metaproject-module-config-variable-accessors (module)
+(defmacro define-metaproject-module-config-accessors (module)
   "Generate accessors for variables in the config for the module MODULE.
 The functions `metaproject-MODULE-config-get-value' and
-`metaproject-MODULE-config-put-value' are defined."
+`metaproject-MODULE-config-set-value' are defined."
   (let* ((name (symbol-name module))
 	 (prefix (concat "metaproject-" name "-config-"))
 	 (suffix "-value")
 	 (get-fn-name (intern (concat prefix "get" suffix)))
-	 (put-fn-name (intern (concat prefix "put" suffix))))
+	 (set-fn-name (intern (concat prefix "set" suffix))))
     `(progn
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from config for the " name " module of PROJECT the value of VARIABLE.")
 	 (metaproject-module-config-get-value project ',module variable))
-       (defun ,put-fn-name (project variable value)
+       (defun ,set-fn-name (project variable value)
 	 ,(concat "Save to the config for the " name " module in PROJECT the VARIABLE with VALUE.")
-	 (metaproject-module-config-put-value project ',module variable value)))))
-		 
+	 (metaproject-module-config-set-value project ',module variable value)))))
+
+(defmacro define-metaproject-module-config-variable-accessors (module variable)
+  "Generate accessors from MODULE for VARIABLE.
+The functions `metaproject-MODULE-config-VARIABLE-get' and
+`metaproject-MODULE-config-VARIABLE-set' are defined."
+  (let* ((module-name (symbol-name module))
+	 (variable-name (symbol-name variable))
+	 (module-config-get-fn-name (intern (concat "metaproject-" module-name "-config-get-value")))
+	 (module-config-set-fn-name (intern (concat "metaproject-" module-name "-config-set-value")))
+	 (prefix (concat "metaproject-" module-name "-config-"))					     
+	 (get-fn-name (intern (concat prefix "get-" variable-name)))
+	 (set-fn-name (intern (concat prefix "set-" variable-name))))
+    `(progn
+       (defun ,get-fn-name (project)
+	 ,(concat "Return the value of "
+		  variable-name
+		  " from the config of the module "
+		  module-name
+		  " from PROJECT.")
+	 (,module-config-get-fn-name project ',variable))
+       (defun ,set-fn-name (project value)
+	 ,(concat "Save to the config of the module "
+		  module-name
+		  " in PROJECT VALUE for "
+		  variable-name
+		  ".")
+	 (,module-config-set-fn-name project ',variable value)))))
+
 (defconst metaproject-module-default-state-parts (list nil)
   "The symbols that are common in state to all module definitions.
 Currently, there is no common state shared among all definitions.
@@ -356,60 +383,76 @@ defaults should be stored."
 	    module-state))
       nil)))
 
-(defun metaproject-module-put-state (project module state)
+(defun metaproject-module-set-state (project module state)
   "Save to PROJECT MODULE 's runtime STATE."
-  (metaproject-project-put-state project module state))
+  (metaproject-project-set-state project module state))
 
 (defun metaproject-module-state-get-value (project module variable)
   "Return from the PROJECT in the state for MODULE the value of VARIABLE."
   (let ((module-state (metaproject-module-get-state project module)))
     (cdr (assoc variable module-state))))
 
-(defun metaproject-module-state-put-value (project module variable value)
+(defun metaproject-module-state-set-value (project module variable value)
   "Set on PROJECT in the config for MODULE VARIABLE to VALUE."
   (let* ((module-state (metaproject-module-get-state project module))
 	 (variable-assoc (assoc variable module-state)))
     (if (null variable-assoc)
-	(metaproject-module-put-state
+	(metaproject-module-set-state
 	 project
 	 module
 	 (acons variable value module-state))
       (setcdr variable-assoc value))))
 
-(defmacro define-metaproject-module-state-variable-accessors (module)
+(defmacro define-metaproject-module-state-accessors (module)
   "Generate accessors for variables in the state for the module MODULE.
 The functions `metaproject-MODULE-state-get-value' and
-`metaproject-MODULE-state-put-value' are defined."
+`metaproject-MODULE-state-set-value' are defined."
   (let* ((name (symbol-name module))
 	 (prefix (concat "metaproject-" name "-state-"))
 	 (suffix "-value")
 	 (get-fn-name (intern (concat prefix "get" suffix)))
-	 (put-fn-name (intern (concat prefix "put" suffix))))
+	 (set-fn-name (intern (concat prefix "set" suffix))))
     `(progn
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from the state for the " name " module of PROJECT the value of VARIABLE.")
 	 (metaproject-module-state-get-value project ',module variable))
-       (defun ,put-fn-name (project variable value)
+       (defun ,set-fn-name (project variable value)
 	 ,(concat "Save to the state for the " name " module in PROJECT the VARIABLE with VALUE.")
-	 (metaproject-module-state-put-value project ',module variable value)))))
+	 (metaproject-module-state-set-value project ',module variable value)))))
+
+(defmacro define-metaproject-module-state-variable-accessors (module variable)
+  "Generate accessors from MODULE for VARIABLE.
+The functions `metaproject-MODULE-state-VARIABLE-get' and
+`metaproject-MODULE-state-VARIABLE-set' are defined."
+  (let* ((module-name (symbol-name module))
+	 (variable-name (symbol-name variable))
+	 (module-state-get-fn-name (intern (concat "metaproject-" module-name "-state-get-value")))
+	 (module-state-set-fn-name (intern (concat "metaproject-" module-name "-state-set-value")))
+	 (prefix (concat "metaproject-" module-name "-state-"))					     
+	 (get-fn-name (intern (concat prefix "get-" variable-name)))
+	 (set-fn-name (intern (concat prefix "set-" variable-name))))
+    `(progn
+       (defun ,get-fn-name (project)
+	 ,(concat "Return the value of "
+		  variable-name
+		  " from the state of the module "
+		  module-name
+		  " from PROJECT.")
+	 (,module-state-get-fn-name project ',variable))
+       (defun ,set-fn-name (project value)
+	 ,(concat "Save to the state of the module "
+		  module-name
+		  " in PROJECT VALUE for "
+		  variable-name
+		  ".")
+	 (,module-state-set-fn-name project ',variable value)))))
 
 ;;;; Metaproject Files module definition.
 ;; It is one of the default modules that is always loaded and core Metaproject
 ;; depends upon, but for simplicity, in many cases, such as project load and store
 ;; time, it is treated like any other module.  It just happens to live in the same file.
-(define-metaproject-module-config-variable-accessors files)
-
-;; TODO-MAYBE: Rename metaproject-project-get-open-files to something more apropos when implementing.
-(defun metaproject-files-get-files-from-project (project)
-  "Return the list of files belonging to PROJECT.
-These files are not necessarily currently open.  Use
-`metaproject-project-get-open-files' to get a list of the project files
-that are currently open."
-  (metaproject-files-config-get-value project 'files))
-
-(defun metaproject-files-put-files-to-project (project files)
-  "Set on PROJECT the list of FILES."
-  (metaproject-files-config-put-value project 'files files))
+(define-metaproject-module-config-accessors files)
+(define-metaproject-module-config-variable-accessors files files)
 
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
@@ -435,10 +478,10 @@ project's directory), an error is signaled."
       (let* ((project-base-dir (metaproject-project-get-state project 'project-base-dir))
 	     (expanded-file-name (expand-file-name file project-base-dir))
 	     (relative-file-name (file-relative-name expanded-file-name project-base-dir))
-	     (project-files (metaproject-files-get-files-from-project project)))
+	     (project-files (metaproject-files-config-get-files project)))
 	(when (not (member relative-file-name project-files))
 	  (let ((new-project-files (add-to-list 'project-files relative-file-name)))
-	    (metaproject-files-put-files-to-project
+	    (metaproject-files-config-set-files
 	     project
 	     new-project-files))))
 	(error metaproject-error-not-valid-file file)))
