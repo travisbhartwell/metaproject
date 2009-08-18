@@ -1,3 +1,3 @@
 ; -*- mode: emacs-lisp -*-
 
-(files ("metaproject.el" "project-utils.el" "metaproject-ido.el" "metaproject-magit.el" "metaproject-project-buffer-mode.el" "README.markdown" "notes.org") magit-status t project-buffer-mode t)
+(files ("lisp/metaproject.el" "README.markdown" "doc/notes.org" "test/test.el" "test/run-test.sh") magit-status t project-buffer-mode t)
