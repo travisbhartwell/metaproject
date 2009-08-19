@@ -95,6 +95,8 @@
 (defconst metaproject-config-file-name ".metaproject"
   "The default filename used for the metaproject configuration files.")
 
+;; Since .metaproject is just a bunch of Emacs Lisp forms, this is handy
+;; when editing .metaproject by hand.
 (add-to-list 'auto-mode-alist '("\\.metaproject$" . emacs-lisp-mode))
 
 (defconst metaproject-version "0.02-SNAPSHOT"
@@ -121,7 +123,7 @@ information and state of each project.")
 
 (defun metaproject-current-projects-get-project-by-path (path)
   "Get the currently open project that has the top level directory PATH.
-Returns nil if a project from that path is not currently open."
+Returns nil if a project from PATH is not currently open."
   (gethash path metaproject-current-projects nil))
 
 (defun metaproject-current-projects-remove-project (project)
@@ -352,14 +354,14 @@ The functions `metaproject-MODULE-config-VARIABLE-get' and
 		  ".")
 	 (,module-config-set-fn-name project ',variable value)))))
 
-(defconst metaproject-module-default-state-parts (list nil)
+(defconst metaproject-module-default-state-parts nil
   "The symbols that are common in state to all module definitions.
 Currently, there is no common state shared among all definitions.
 
 Note this constant is primarily for documentation and symbol creation
 purposes and is not explicitly referenced elsewhere at the moment.")
 
-(defconst metaproject-module-default-state-empty-template (list nil)
+(defconst metaproject-module-default-state-empty-template nil
   "Template for empty in-memory module state with default values.
 Currently, there is no common state shared among all definitions.")
 
@@ -454,6 +456,17 @@ The functions `metaproject-MODULE-state-VARIABLE-get' and
 (define-metaproject-module-config-accessors files)
 (define-metaproject-module-config-variable-accessors files files)
 
+(define-metaproject-module-state-accessors files)
+(define-metaproject-module-state-variable-accessors files files)
+
+(defun metaproject-files-init-module (project)
+  "Initialize the files module when loading PROJECT.
+Eventually, this will construct the total list of files belonging to
+PROJECT via the `files', `include-regexp', and `exclude-regexp' (or
+whatever appropriate name the variables are given)."
+  (let ((all-files (metaproject-files-config-get-files project)))
+    (metaproject-files-state-set-files project all-files)))
+  
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
   (let* ((project-base-dir (file-name-as-directory
@@ -483,8 +496,9 @@ project's directory), an error is signaled."
 	  (let ((new-project-files (add-to-list 'project-files relative-file-name)))
 	    (metaproject-files-config-set-files
 	     project
-	     new-project-files))))
-	(error metaproject-error-not-valid-file file)))
+	     new-project-files)
+	    (metaproject-files-init-module project))))
+    (error metaproject-error-not-valid-file file)))
 
 (provide 'metaproject)
 ;;; metaproject.el ends here
