@@ -130,19 +130,19 @@ Returns nil if a project from PATH is not currently open."
   "Remove the project specified by PROJECT from the current projects group.
 Does not close the project or any of its buffers, this may be done
 elsewhere."
-  (let ((project-base-dir (metaproject-project-get-state project 'project-base-dir)))
+  (let ((project-base-dir (metaproject-project-state-get-project-base-dir project)))
     (remhash project-base-dir metaproject-current-projects)))
 
 (defun metaproject-current-projects-add-project (project)
   "Add the project specified by PROJECT to the current projects group.
 It is assumed that the project itself is opened and any related operations
 are done elsewhere."
-  (let ((project-base-dir (metaproject-project-get-state project 'project-base-dir)))
+  (let ((project-base-dir (metaproject-project-state-get-project-base-dir  project)))
     (assert (not (null project-base-dir)))
     (puthash project-base-dir project metaproject-current-projects)))
 
 ;;;; General Project support
-(defconst metaproject-project-parts (list (make-symbol "state") (make-symbol "config"))
+(defconst metaproject-project-parts (list (intern "state") (intern "config"))
   "The symbols that are used in the in-memory project structures.
 'state' will contain the current state of the project: open buffers, etc.
 'config' will contain the configuration to be persisted across project loads.
@@ -153,7 +153,7 @@ purposes and is not explicitly referenced elsewhere at the moment.")
 (defconst metaproject-project-empty-template '((state . nil) (config . nil))
   "Template for empty in-memory project structures.")
 
-(defun metaproject-project-get-empty-template ()
+(defun metaproject-project-new-project ()
   "Return a copy of the empty in-memory project structure template for use."
   (copy-alist metaproject-project-empty-template))
 
@@ -175,9 +175,9 @@ directory, an error is signaled."
 	(let* ((name (if (null name)
 			 (file-name-directory project-base-dir)
 		       name))
-	       (new-project (metaproject-project-get-empty-template)))
-	  (setq new-project (metaproject-project-set-config new-project 'name name)
-		new-project (metaproject-project-set-state new-project 'project-base-dir project-base-dir))
+	       (new-project (metaproject-project-new-project)))
+	  (setq new-project (metaproject-project-config-set-name new-project name)
+		new-project (metaproject-project-state-set-project-base-dir new-project project-base-dir))
 	  (metaproject-current-projects-add-project new-project))
       (error metaproject-error-directory-not-found project-base-dir))))
 
@@ -235,6 +235,22 @@ project.")
 (define-metaproject-project-data-accessors config)
 (define-metaproject-project-data-accessors state)
 
+(defun metaproject-project-config-get-name (project)
+  "Return the project name for PROJECT."
+  (metaproject-project-get-config project 'name))
+
+(defun metaproject-project-config-set-name (project name)
+  "Set the project name for PROJECT."
+  (metaproject-project-set-config project 'name name))
+
+(defun metaproject-project-state-get-project-base-dir (project)
+  "Return the base directory for PROJECT."
+  (metaproject-project-get-state project 'project-base-dir))
+
+(defun metaproject-project-state-set-project-base-dir (project project-base-dir)
+  "Set the PROJECT-BASE-DIR for PROJECT."
+  (metaproject-project-set-state project 'project-base-dir project-base-dir))
+
 (defun metaproject-project-store-config (project)
   "Store the configuration for PROJECT to disk."
   (let* ((config (cdr (assoc 'config project)))
@@ -258,7 +274,7 @@ project.")
 	    new-project)))))
 
 ;; Module helpers
-(defconst metaproject-module-default-config-parts (list (make-symbol "autoload"))
+(defconst metaproject-module-default-config-parts (list (intern "autoload"))
   "The symbols that are common in config to all module definitions.
 'autoload' indicates whether this module's open function is to be run
 when the project is opened.  Possible values are nil, t, or prompt.
