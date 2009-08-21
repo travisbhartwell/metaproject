@@ -508,7 +508,7 @@ project's directory), an error is signaled."
 	     (expanded-file-name (expand-file-name file project-base-dir))
 	     (relative-file-name (file-relative-name expanded-file-name project-base-dir))
 	     (project-files (metaproject-files-config-get-files project)))
-	(when (not (member relative-file-name project-files))
+	(unless (member relative-file-name project-files)
 	  (let ((new-project-files (add-to-list 'project-files relative-file-name)))
 	    (metaproject-files-config-set-files
 	     project
