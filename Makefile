@@ -3,6 +3,7 @@ EMACS22 = /usr/bin/emacs22
 
 clean :
 	rm -f lisp/*.elc
+	rm -f /home/nafai/.metaproject /home/nafai/Projects/metaproject/metaproject-test/.metaproject
 
 byte-compile : clean
 	$(EMACS23) --batch -q --no-site-file --eval '(byte-compile-file "lisp/metaproject.el")'

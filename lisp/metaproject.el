@@ -25,7 +25,7 @@
 ;; Metaproject is a library providing functionality centered around
 ;; the the idea of a project.  A project is simply a group of related
 ;; files and buffers, with all of the files located under a common
-;; directory.
+;; top-level directory.
 ;;
 ;; I originally wrote Metaproject as I found it a pain to always open
 ;; the same small group of source files I was working on and I
@@ -135,9 +135,9 @@ elsewhere."
 
 (defun metaproject-current-projects-add-project (project)
   "Add the project specified by PROJECT to the current projects group.
-It is assumed that the project itself is opened and any related operations
+It is assumed that the project itself is open and any related operations
 are done elsewhere."
-  (let ((project-base-dir (metaproject-project-state-get-project-base-dir  project)))
+  (let ((project-base-dir (metaproject-project-state-get-project-base-dir project)))
     (assert (not (null project-base-dir)))
     (puthash project-base-dir project metaproject-current-projects)))
 
@@ -185,7 +185,7 @@ directory, an error is signaled."
 (defun metaproject-project-get-data (project sym variable)
   "Return from PROJECT in SYM's list the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
-and the variable not existing.  Use `metaproject-project-data-member' if
+and the variable not existing.  Use `metaproject-project-member-data' if
 concerned about null values."
   (let ((data (cdr (assoc sym project))))
     (cdr (assoc variable data))))
@@ -209,8 +209,8 @@ project."
 
 (defmacro define-metaproject-project-data-accessors (sym)
   "Generate the accessor functions for SYM in a project.
-This includes `metaproject-project-SYM-get', `metaproject-project-SYM-member',
-and `metaproject-project-SYM-set'."
+This includes `metaproject-project-get-SYM', `metaproject-project-member-SYM',
+and `metaproject-project-set-SYM'."
   (let* ((name (symbol-name sym))
 	 (prefix "metaproject-project-")
 	 (get-fn-name (intern (concat prefix "get-" name)))
@@ -220,7 +220,7 @@ and `metaproject-project-SYM-set'."
        (defun ,get-fn-name (project variable)
 	 ,(concat "Return from the PROJECT " name " the value of VARIABLE.
 Note that this does not differentiate between a variable having a null value
-and the variable not existing.  Use `metaproject-project-" name "-member' if
+and the variable not existing.  Use `metaproject-project-member-" name "' if
 concerned about null values.")
 	 (metaproject-project-get-data project ',sym variable))
        (defun ,member-fn-name (project variable)
@@ -351,7 +351,7 @@ The functions `metaproject-MODULE-config-VARIABLE-get' and
 	 (variable-name (symbol-name variable))
 	 (module-config-get-fn-name (intern (concat "metaproject-" module-name "-config-get-value")))
 	 (module-config-set-fn-name (intern (concat "metaproject-" module-name "-config-set-value")))
-	 (prefix (concat "metaproject-" module-name "-config-"))					     
+	 (prefix (concat "metaproject-" module-name "-config-"))
 	 (get-fn-name (intern (concat prefix "get-" variable-name)))
 	 (set-fn-name (intern (concat prefix "set-" variable-name))))
     `(progn
@@ -446,7 +446,7 @@ The functions `metaproject-MODULE-state-VARIABLE-get' and
 	 (variable-name (symbol-name variable))
 	 (module-state-get-fn-name (intern (concat "metaproject-" module-name "-state-get-value")))
 	 (module-state-set-fn-name (intern (concat "metaproject-" module-name "-state-set-value")))
-	 (prefix (concat "metaproject-" module-name "-state-"))					     
+	 (prefix (concat "metaproject-" module-name "-state-"))
 	 (get-fn-name (intern (concat prefix "get-" variable-name)))
 	 (set-fn-name (intern (concat prefix "set-" variable-name))))
     `(progn
@@ -482,7 +482,7 @@ PROJECT via the `files', `include-regexp', and `exclude-regexp' (or
 whatever appropriate name the variables are given)."
   (let ((all-files (metaproject-files-config-get-files project)))
     (metaproject-files-state-set-files project all-files)))
-  
+
 (defun metaproject-files-valid-file-in-project-p (file project)
   "Return t if FILE exists, is a regular file, and is under the PROJECT's directory."
   (let* ((project-base-dir (file-name-as-directory

@@ -1,7 +1,7 @@
 (toggle-debug-on-error)
 (require 'metaproject)
 (setq myproj (metaproject-project-create-project "/home/nafai" "HOME"))
-(metaproject-files-add-file-to-project myproj "/home/nafai/.emacs")
+(metaproject-files-add-file-to-project myproj "/home/nafai/.gitconfig")
 (metaproject-files-add-file-to-project myproj "/home/nafai/.bashrc")
 (metaproject-files-add-file-to-project myproj "/home/nafai/.bash_history")
 (metaproject-project-store-config myproj)

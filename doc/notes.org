@@ -248,6 +248,69 @@
      shortcut keys on a project-to-project basis.  Examples:
      - running checkdoc, elint, launching certain make targets
 
+** [2009-10-10 Sat 04:44]
+
+   Notes from code review.
+   - need to include USAGE section of header
+   - look at coding standard to see what other portions, if any,
+     belong in header
+   - I like "currently open projects" as described in the outline
+     header, but "current-projects" and "current projects group" as
+     used in the code and comments are not descriptive enough
+   - should metaproject-current-projects-get-project-by-path return a
+     project if you give it any of the project's subdirectories?  Or
+     should I add a function (if I don't have one already) to return a
+     project top-level directory given a subdirectory, if the
+     subdirectory is in a project?  Probably the latter, and then the
+     original function can be called using the output of the latter.
+   - should probably divide the code into "external" and "internal"
+     functions and data structures and appropriately name and document
+     each item as necessary
+     - there are actually two definitions of "external" for our
+       purposes and they should probably be handled/named differently
+       - called directly or via keybindings by the end-user
+       - called by modules
+     - then, any function only called within metaproject is "internal"
+   - how much should I use assert and other error-checking for
+     function parameters/etc through out most functions to make sure
+     internal state is consistent and appropriate?  The assumptions on
+     parameters should probably be documented in docstrings so as to
+     not surprise users.
+     - what's the difference between using error and assert?
+     - if I understand correctly, the appropriate usage should be
+       such, as is common in object-oriented programming:
+       - error should be used for "external" facing or public functions
+       - assert should be used for internal functions to maintain
+         internal consistency and for cases that should never happen.
+   - is the explicit interning as done in metaproject-project-parts
+     necessary?  The documentation aspect seems appropriate, at least.
+   - audit file and directory name handling, making sure usage of
+     expand-file-name and related calls are appropriate for the where
+     they are used
+   - remove metaproject-project-member-data if it isn't used anywhere
+   - when it feels necessary, write macros to generate functions like
+     metaproject-project-config-get/set-name and
+     metaproject-project-state-get/set-project-base-dir to make it
+     cleaner if more than just a few variables are stored in config
+     and state
+   - what's the difference between filename and a path in emacs
+     purview?  I should use the appropriate terminology and variable
+     names, such as in metaproject-project-load-config
+   - update metaproject-module-get-default-config/-state and write the
+     related portions to have a registered default configuration or
+     state for a
+     module so it can return such
+     - if a module has not registered a default config/state, but the module
+       exists, it should return
+       metaproject-module-default-config/state-empty-template
+   - modules should be registered somewhere and then in all of the
+     module config and state related functions should properly handle
+     the case of a module doesn't exist -- or should it?  I would like
+     to support the case where a module isn't loaded on a given
+     machine but configuration exists in the .metaproject file and
+     that configuration is just ignored.  This should be handled
+     gracefully, with possibly just a warning message
+
 * Notes and plans:
 ** Open project
 ***  open all files in a project, including project supporting buffers
